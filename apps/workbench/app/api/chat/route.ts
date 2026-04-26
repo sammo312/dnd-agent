@@ -26,7 +26,11 @@ export async function POST(req: Request) {
     //
     // Haiku 4.5 has much higher TPM limits than Sonnet on the gateway
     // and is plenty capable for tool-orchestration / scene-prep work.
-    model: "anthropic/claude-haiku-4-5",
+    // Slug uses a dot (`4.5`), not a hyphen — the dashed variant doesn't
+    // resolve on the gateway and fails before the data stream opens, so
+    // `getErrorMessage` never runs and the client surfaces a blank
+    // "Error:" with no detail.
+    model: "anthropic/claude-haiku-4.5",
     system: buildSystemPrompt(workspace),
     messages: convertToCoreMessages(messages),
     tools: dmTools,
