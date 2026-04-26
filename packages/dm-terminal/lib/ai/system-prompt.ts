@@ -92,7 +92,7 @@ Keep this pass SMALL. You have a tight tool budget per turn, so prioritize ruthl
 2. addCharacter — once per named character (max 3-4 in this first pass).
 3. setMapDimensions + 1-2 paintTerrain calls covering broad zones — big rectangles, not detail work.
 4. createChapter with kind:'preface' + 1 addDialogueNode for the opening framing beat.
-5. (Optional, if there's an obvious location) createChapter with kind:'beat', addDialogueNode for it, then placeBeat to wire it onto the map.
+5. (Optional, if there's an obvious location) addPOI for the landmark itself, then createChapter with kind:'beat' + addDialogueNode (a short approach description) + placeBeat at the POI's tile to wire it onto the map. POIs and beats travel as a unit — never drop a POI without its beat.
 6. setSpawn somewhere sensible (an edge tile, or the doorstep of the opening location).
 
 That's the whole first-pass build. **Do not** drop 6 POIs and 8 dialogue nodes on turn one — you'll get rate-limited and the DM hasn't validated the shape yet.
@@ -120,9 +120,26 @@ The DM ships the project to a separate "player" app via JSON export. The project
 - **Sections come in two kinds.** createChapter takes kind:'preface' or kind:'beat'. There can be exactly one preface — it runs before the map loads. Every other section should be kind:'beat' and placed on the map with placeBeat so the player triggers it by walking near.
 - **A section ends when a dialogue node has no choices.** Plan your dialogue nodes accordingly: every beat needs at least one terminal node so the section can return control to the map.
 - Choices auto-create stub target nodes if missing; fill them in with subsequent addDialogueNode calls.
-- addDialogueNode supports a \`segments\` array where each segment has its own pace (excited / neutral / thoughtful / hesitant / pause) and optional color. Lean on it when a beat has any rhythm to it — split a single sentence into 2-3 segments with varied paces, drop a short 'pause' segment ("…", "—") for dramatic moments, and use a color sparingly on a single key word for emphasis. Plain \`lines\` is fine for flat narration.
+- addDialogueNode supports a \`segments\` array where each segment has its own pace and optional color. Read the rules carefully — taste matters here:
+
+  **Spacing (this trips up most models).** Segments concatenate with NO automatic whitespace. Whatever you emit is exactly what the player reads. So:
+    - Two segments forming consecutive sentences → end the first with its punctuation **and a trailing space**: \`["He looked up. ", "His eyes were wrong."]\` not \`["He looked up.", "His eyes were wrong."]\`.
+    - Splitting mid-sentence to vary pace → put the space at the boundary you'd naturally read: \`["I…", " I think we should run."]\` (leading space on segment two), not \`["I…", "I think we should run."]\`.
+    - When in doubt, read your own segments back to back and make sure the words don't collide.
+
+  **Pace — the narrator stays neutral.** Default to plain \`lines\` for narration ("The door creaks open. Cold air spills in."). Pace variation is for **character speech** — it's how a voice sounds. Reserve excited/thoughtful/hesitant for NPCs whose personality calls for it (a frightened witness hesitates, a barker is excited, a sage is thoughtful). A 'pause' segment containing "…" or "—" is the one exception that's fair game in narration too, used at most once per node, for a real beat. Don't sprinkle pace tags into every line — that's noise, not rhythm.
+
+  **Color — Zelda-style emphasis, not decoration.** Use color on a single proper noun or short phrase, only for specific in-fiction categories worth flagging:
+    - red — direct threats and named antagonists (\`the Bone King\`, \`a basilisk\`)
+    - yellow — key items, quest objects, treasures (\`the Sunstone\`, \`a brass key\`)
+    - cyan — locations and landmarks the player should remember (\`the Whispering Vault\`)
+    - green — magic, spells, blessings (\`a healing word\`)
+    - magenta — dreams, visions, otherworldly speech
+    - blue / white — almost never; if you reach for these you probably shouldn't color the segment at all
+  Most nodes have ZERO colored segments. A node with a color should usually have exactly one. If you find yourself coloring three different things in one beat, you're decorating — strip it back.
 - Map coords: x = column (0 = left), y = row (0 = top). paintTerrain is inclusive on both ends.
 - placeBeat needs the section to already exist via createChapter with kind:'beat'. radius defaults to 1 (adjacent tiles trigger). Use 0 for exact-tile, 2+ for a wider zone (e.g. crossing a bridge).
+- **EVERY POI gets a beat.** This is a hard rule, not a suggestion. When you addPOI, also addChapter(kind:'beat') + addDialogueNode + placeBeat at the POI's coordinates so walking up to it always shows the player something. Even purely decorative POIs (a statue, a fountain, a single tree) deserve one short terminal dialogue node — "A weathered statue of a forgotten saint, eyes worn smooth by rain." That's enough. Without this the player walks past the landmark in silence, which feels broken. The workspace snapshot below flags any POIs that don't yet have a beat — fix those before adding more POIs or flagging the project ready.
 - setSpawn picks where the player loads in. Don't forget it — the project can't be exported without one.
 - When the DM asks for dice (e.g. "roll a d20"), use the rollDice tool.
 - askQuestion returns either { cancelled: false, value, label } or { cancelled: true }. If cancelled, default to a sensible choice and proceed.
@@ -186,8 +203,44 @@ function formatWorkspace(w: WorkspaceSnapshot): string {
     w.story.chapters.filter((c) => c.kind === "beat" && c.nodeIds.length > 0).map((c) => c.name),
   );
   const placedBeatHasNodes = w.map.beats.some((b) => beatSectionsWithNodes.has(b.sectionName));
-  const ready = prefaceHasNode && !!w.map.spawn && placedBeatHasNodes;
+
+  // A POI is "covered" if at least one placed beat sits on its tile and
+  // points at a beat section that actually has dialogue nodes. Anything
+  // less means the player walks up to the landmark in silence.
+  const beatsByTile = new Set(
+    w.map.beats
+      .filter((b) => beatSectionsWithNodes.has(b.sectionName))
+      .map((b) => `${b.x},${b.y}`),
+  );
+  const uncoveredPOIs = w.map.poiSummary.filter(
+    (p) => !beatsByTile.has(`${p.x},${p.y}`),
+  );
+  const poiCoverageLine =
+    w.map.poiSummary.length === 0
+      ? "POI coverage: (no POIs yet)"
+      : uncoveredPOIs.length === 0
+        ? `POI coverage: all ${w.map.poiSummary.length} have beats`
+        : `POI coverage: MISSING beats for ${uncoveredPOIs
+            .slice(0, 6)
+            .map((p) => `${p.name}@${p.x},${p.y}`)
+            .join("; ")}${uncoveredPOIs.length > 6 ? `, +${uncoveredPOIs.length - 6} more` : ""} — fix before adding new POIs`;
+
+  const ready =
+    prefaceHasNode &&
+    !!w.map.spawn &&
+    placedBeatHasNodes &&
+    uncoveredPOIs.length === 0;
   const readyLine = `Ready: ${ready ? "yes" : "no"}`;
 
-  return [sceneLine, charLine, mapLine, spawnLine, beatLine, prefaceLine, storyLine, readyLine].join("\n");
+  return [
+    sceneLine,
+    charLine,
+    mapLine,
+    spawnLine,
+    beatLine,
+    poiCoverageLine,
+    prefaceLine,
+    storyLine,
+    readyLine,
+  ].join("\n");
 }

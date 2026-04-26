@@ -68,7 +68,7 @@ export function ExportButton() {
         type="button"
         onClick={handleClick}
         disabled={running}
-        className="absolute right-3 top-1.5 z-50 inline-flex items-center gap-1.5 rounded-md border border-amber-700/40 bg-stone-900/90 px-2.5 py-1 font-mono text-xs text-amber-300/90 shadow-sm backdrop-blur-sm transition-colors hover:border-amber-500/60 hover:bg-stone-800 hover:text-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-1.5 rounded-md border border-amber-700/40 bg-stone-900/90 px-2.5 py-1 font-mono text-xs text-amber-300/90 shadow-sm backdrop-blur-sm transition-colors hover:border-amber-500/60 hover:bg-stone-800 hover:text-amber-200 disabled:cursor-not-allowed disabled:opacity-60"
         aria-label="Export project as JSON"
       >
         {running ? (

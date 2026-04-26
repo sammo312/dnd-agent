@@ -6,7 +6,7 @@ import { DemoPlayerScene } from "@dnd-agent/three-engine"
 import { useSyncServer } from "@/hooks/use-sync-server"
 
 // ──────────────────────────────────────────────────────
-// Demo page: the player's view of The Living Stage.
+// Demo page: the player's 3D scene view.
 //
 // Connects to sync server via WebSocket.
 // Renders DemoPlayerScene with live game state.

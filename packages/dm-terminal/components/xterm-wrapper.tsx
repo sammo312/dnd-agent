@@ -100,6 +100,7 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
 
       let terminal: any;
       let fitAddon: any;
+      let resizeObserver: ResizeObserver | null = null;
       let disposed = false;
 
       async function init() {
@@ -137,12 +138,20 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
         terminalRef.current = terminal;
         fitAddonRef.current = fitAddon;
 
-        window.addEventListener("resize", handleResize);
+        // ResizeObserver covers dockview panel drag-resizes (which never
+        // fire `window.resize`), browser zoom, and devtools toggles in
+        // one shot. Falls back to window.resize if RO isn't available.
+        if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+          resizeObserver = new ResizeObserver(() => handleResize());
+          resizeObserver.observe(containerRef.current);
+        } else {
+          window.addEventListener("resize", handleResize);
+        }
         terminal.focus();
 
         // Notify the shell that xterm is mounted and writable. This must
         // run *after* `terminalRef.current = terminal` so the imperative
-        // handle's write/clear/focus are no longer no-ops.
+        // handle's write/clear/focus are no-ops.
         onReady?.();
       }
 
@@ -150,23 +159,51 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
 
       return () => {
         disposed = true;
+        resizeObserver?.disconnect();
         window.removeEventListener("resize", handleResize);
         terminal?.dispose();
       };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    /**
+     * Forward wheel events that land on the wrapper's padding (the dead
+     * zones around xterm's canvas) into xterm's own viewport. Without
+     * this, scrolling over the padding bubbled up to the document and
+     * scrolled the whole page, making it look like the terminal couldn't
+     * reach its own bottom during streaming output.
+     */
+    const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+      // Only intervene when the event landed on our own div — i.e. on
+      // the padding. Events that originate inside xterm's children
+      // (xterm-viewport, etc.) are left alone so xterm handles them.
+      if (e.target !== e.currentTarget) return;
+      const viewport = containerRef.current?.querySelector<HTMLElement>(
+        ".xterm-viewport",
+      );
+      if (!viewport) return;
+      viewport.scrollTop += e.deltaY;
+      e.preventDefault();
+    }, []);
+
     return (
       <div
         ref={containerRef}
+        onWheel={handleWheel}
         // Background matches xterm theme so there's no visible seam at the
         // canvas edge. Padding follows the comfortable terminal density.
+        // `overscroll-behavior: contain` is a belt to the suspenders of
+        // body { overflow: hidden } — keeps any stray wheel chains from
+        // pulling the document around.
         style={{
           width: "100%",
           height: "100%",
           padding: "12px 16px",
           background: "#1a1612",
+          overscrollBehavior: "contain",
         }}
       />
     );
+  }
+);
   }
 );

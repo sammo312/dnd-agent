@@ -20,11 +20,12 @@ import { runProjectExport } from "@dnd-agent/dm-terminal";
 import { toast } from "sonner";
 
 /**
- * Where the "Open Player" CTA points. The player app isn't published yet,
- * so for now this opens a placeholder. Swap this URL once the player app
- * is live (e.g. `https://player.your-domain.com` or a relative `/player`).
+ * Where the "Open in player" CTA points. Reads from the same env var as
+ * the top-rail OpenInPlayerButton so the two stay in sync. When unset
+ * the CTA falls back to a no-op link with disabled styling.
  */
-const PLAYER_APP_URL = "#open-player-app";
+const PLAYER_URL =
+  typeof process !== "undefined" ? process.env.NEXT_PUBLIC_PLAYER_URL : "";
 
 export interface ExportSuccessDialogProps {
   open: boolean;
@@ -83,13 +84,12 @@ export function ExportSuccessDialog({
               />
             </div>
             <DialogTitle className="text-lg">
-              Your scene is ready to play
+              Project exported
             </DialogTitle>
           </div>
           <DialogDescription className="text-pretty leading-relaxed">
-            We&apos;ve packed everything — story, map, and characters — into a
-            single JSON file. Bring it over to the player app and your party
-            is good to go.
+            Your project — story, map, and characters — is bundled into a
+            single JSON file. Open it in the player app to run a session.
           </DialogDescription>
         </DialogHeader>
 
@@ -168,21 +168,23 @@ export function ExportSuccessDialog({
           >
             Keep iterating
           </Button>
-          <Button
-            type="button"
-            asChild
-            className="gap-2 bg-amber-500 text-stone-950 hover:bg-amber-400"
-          >
-            <a
-              href={PLAYER_APP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => onOpenChange(false)}
+          {PLAYER_URL ? (
+            <Button
+              type="button"
+              asChild
+              className="gap-2 bg-amber-500 text-stone-950 hover:bg-amber-400"
             >
-              Open Player
-              <ExternalLink className="h-4 w-4" aria-hidden />
-            </a>
-          </Button>
+              <a
+                href={PLAYER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => onOpenChange(false)}
+              >
+                Open in player
+                <ExternalLink className="h-4 w-4" aria-hidden />
+              </a>
+            </Button>
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

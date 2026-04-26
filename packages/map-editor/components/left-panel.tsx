@@ -31,6 +31,7 @@ import {
   TooltipTrigger,
 } from "@dnd-agent/ui/components/tooltip"
 import {
+  ChevronLeft,
   ChevronRight,
   ChevronUp,
   ChevronDown,
@@ -90,6 +91,7 @@ interface LeftPanelProps {
   onRenameBeat: (id: string, name: string) => void
   onDeleteBeat: (id: string) => void
   collapsed?: boolean
+  onToggleCollapsed?: () => void
 }
 
 type TabId = "layers" | "terrain" | "pois" | "regions" | "narrative"
@@ -119,6 +121,7 @@ export function LeftPanel({
   onRenameBeat,
   onDeleteBeat,
   collapsed = false,
+  onToggleCollapsed,
 }: LeftPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>("layers")
   const [searchQuery, setSearchQuery] = useState("")
@@ -933,9 +936,27 @@ export function LeftPanel({
   if (collapsed) {
     return (
       <TooltipProvider delayDuration={0}>
-        <div className="w-11 border-r bg-background flex flex-col shrink-0">
+        <div className="w-10 border-r bg-background flex flex-col shrink-0">
+          {/* Expand toggle */}
+          {onToggleCollapsed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggleCollapsed}
+                  className="h-8 mx-1 mt-1 mb-0.5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  aria-label="Expand panel"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Expand panel</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           {/* Vertical icon strip */}
-          <div className="flex flex-col items-center py-2 gap-1 border-b">
+          <div className="flex flex-col items-center py-1 gap-0.5">
             {tabs.map((tab) => (
               <Tooltip key={tab.id}>
                 <TooltipTrigger asChild>
@@ -962,7 +983,7 @@ export function LeftPanel({
           {flyoutOpen && (
             <div
               ref={flyoutRef}
-              className="absolute left-11 top-0 bottom-0 w-64 z-30 bg-background border-r shadow-lg flex flex-col"
+              className="absolute left-10 top-0 bottom-0 w-64 z-30 bg-background border-r shadow-lg flex flex-col"
             >
               {/* Tab header in flyout */}
               <div className="px-3 py-2 border-b">
@@ -978,27 +999,49 @@ export function LeftPanel({
 
   // Expanded mode: full panel
   return (
-    <div className="w-64 border-r bg-background flex flex-col shrink-0">
-      {/* Tab Buttons */}
-      <div className="flex border-b">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "flex-1 py-2 px-0.5 text-[10px] font-medium flex flex-col items-center gap-0.5 transition-colors",
-              activeTab === tab.id
-                ? "bg-muted text-foreground border-b-2 border-primary"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            )}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
-      </div>
+    <TooltipProvider delayDuration={0}>
+      <div className="w-60 border-r bg-background flex flex-col shrink-0">
+        {/* Header: collapse toggle */}
+        {onToggleCollapsed && (
+          <div className="flex items-center justify-end px-1 pt-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggleCollapsed}
+                  className="h-7 w-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  aria-label="Collapse panel"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Collapse panel</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
 
-      {panelContent}
-    </div>
+        {/* Tab Buttons */}
+        <div className="flex border-b">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex-1 py-1.5 px-0.5 text-[10px] font-medium flex flex-col items-center gap-0.5 transition-colors",
+                activeTab === tab.id
+                  ? "text-foreground border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40 border-b-2 border-transparent"
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {panelContent}
+      </div>
+    </TooltipProvider>
   )
 }

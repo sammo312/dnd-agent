@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useStoryStore } from "../../lib/story-store";
 import { Button } from "@dnd-agent/ui/components/button";
 import {
@@ -9,10 +8,8 @@ import {
   ZoomIn,
   ZoomOut,
   Home,
-  Presentation,
 } from "lucide-react";
 import type { StoryNode, Section, DialogueNode } from "../../lib/story-types";
-import { PresentationMode } from "./presentation-mode";
 
 interface ToolbarProps {
   compact?: boolean;
@@ -22,12 +19,10 @@ export function Toolbar({ compact = false }: ToolbarProps) {
   const {
     addNode,
     nodes,
-    exportToJson,
     zoom,
     setZoom,
     setCanvasOffset,
   } = useStoryStore();
-  const [presentationOpen, setPresentationOpen] = useState(false);
 
   const handleAddSection = () => {
     const newId = `section_${Date.now()}`;
@@ -125,26 +120,6 @@ export function Toolbar({ compact = false }: ToolbarProps) {
         </Button>
       </div>
 
-      {/* Presentation Mode */}
-      <div className="flex items-center gap-1 pr-3 border-r border-border">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setPresentationOpen(true)}
-          className="gap-2 bg-transparent"
-        >
-          <Presentation className="w-4 h-4 text-primary" />
-          {!compact && <span className="hidden sm:inline">Present</span>}
-        </Button>
-      </div>
-
-      {/* Presentation Mode */}
-      {presentationOpen && (
-        <PresentationMode
-          data={exportToJson()}
-          onClose={() => setPresentationOpen(false)}
-        />
-      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@dnd-agent/ui/components/dropdown-menu"
@@ -24,21 +25,17 @@ import {
   Lasso,
   Undo2,
   Redo2,
-  ZoomIn,
-  ZoomOut,
   Trash2,
-  Menu,
   Grid3X3,
-  Eye,
-  EyeOff,
   Hand,
   Link2,
-  Unlink,
   Mountain,
-  SlidersHorizontal,
+  MoreHorizontal,
 } from "lucide-react"
 
 export type EditorTool = "select" | "pan" | "paint" | "poi" | "lasso"
+
+type ViewMode = "2d" | "3d"
 
 interface EditorToolbarProps {
   activeTool: EditorTool
@@ -48,8 +45,6 @@ interface EditorToolbarProps {
   onUndo: () => void
   onRedo: () => void
   zoom: number
-  onZoomIn: () => void
-  onZoomOut: () => void
   onZoomReset: () => void
   showGrid: boolean
   onToggleGrid: () => void
@@ -60,9 +55,8 @@ interface EditorToolbarProps {
   showElevation: boolean
   onToggleElevation: () => void
   onClear: () => void
-  historyLength: number
-  futureLength: number
-  compact?: boolean
+  viewMode: ViewMode
+  onViewModeChange: (mode: ViewMode) => void
 }
 
 const tools: { id: EditorTool; icon: React.ReactNode; label: string; hotkey: string }[] = [
@@ -81,8 +75,6 @@ export function EditorToolbar({
   onUndo,
   onRedo,
   zoom,
-  onZoomIn,
-  onZoomOut,
   onZoomReset,
   showGrid,
   onToggleGrid,
@@ -93,232 +85,141 @@ export function EditorToolbar({
   showElevation,
   onToggleElevation,
   onClear,
-  historyLength,
-  futureLength,
-  compact = false,
+  viewMode,
+  onViewModeChange,
 }: EditorToolbarProps) {
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="h-12 border-b bg-background flex items-center px-2 gap-1">
-        {/* Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 px-2">
-              <Menu className="h-4 w-4 mr-1" />
-              {!compact && <span className="text-sm">File</span>}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={onClear} className="text-destructive">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Clear All
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="h-9 border-b bg-background flex items-center px-1.5 gap-0.5">
+        {/* Tools */}
+        {tools.map((tool) => (
+          <Tooltip key={tool.id}>
+            <TooltipTrigger asChild>
+              <Button
+                variant={activeTool === tool.id ? "secondary" : "ghost"}
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => onToolChange(tool.id)}
+              >
+                {tool.icon}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{tool.label} ({tool.hotkey})</p>
+            </TooltipContent>
+          </Tooltip>
+        ))}
 
-        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Separator orientation="vertical" className="h-5 mx-1" />
 
-        {/* Undo/Redo */}
+        {/* Undo / Redo */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7"
               onClick={onUndo}
               disabled={!canUndo}
             >
-              <Undo2 className="h-4 w-4" />
+              <Undo2 className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>
-            <p>Undo (Ctrl+Z)</p>
-            {historyLength > 0 && (
-              <p className="text-xs text-muted-foreground">{historyLength} steps available</p>
-            )}
-          </TooltipContent>
+          <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
         </Tooltip>
-
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-7 w-7"
               onClick={onRedo}
               disabled={!canRedo}
             >
-              <Redo2 className="h-4 w-4" />
+              <Redo2 className="h-3.5 w-3.5" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>
-            <p>Redo (Ctrl+Shift+Z)</p>
-            {futureLength > 0 && (
-              <p className="text-xs text-muted-foreground">{futureLength} steps available</p>
-            )}
-          </TooltipContent>
+          <TooltipContent>Redo (Ctrl+Shift+Z)</TooltipContent>
         </Tooltip>
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        {/* Tools */}
-        <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
-          {tools.map((tool) => (
-            <Tooltip key={tool.id}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={activeTool === tool.id ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => onToolChange(tool.id)}
-                >
-                  {tool.icon}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{tool.label} ({tool.hotkey})</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </div>
-
-        <Separator orientation="vertical" className="h-6 mx-1" />
-
-        {/* View Options - inline when not compact, dropdown when compact */}
-        {compact ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <SlidersHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuCheckboxItem checked={showGrid} onCheckedChange={onToggleGrid}>
-                <Grid3X3 className="h-4 w-4 mr-2" />
-                Grid (G)
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={showRegions} onCheckedChange={onToggleRegions}>
-                <Eye className="h-4 w-4 mr-2" />
-                Regions (R)
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={showAssociations} onCheckedChange={onToggleAssociations}>
-                <Link2 className="h-4 w-4 mr-2" />
-                Associations (A)
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem checked={showElevation} onCheckedChange={onToggleElevation}>
-                <Mountain className="h-4 w-4 mr-2" />
-                Elevation (E)
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showGrid ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={onToggleGrid}
-                >
-                  <Grid3X3 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Toggle Grid (G)</p>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showRegions ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={onToggleRegions}
-                >
-                  {showRegions ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Toggle Regions (R)</p>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showAssociations ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={onToggleAssociations}
-                >
-                  {showAssociations ? <Link2 className="h-4 w-4" /> : <Unlink className="h-4 w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Toggle Associations (A)</p>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showElevation ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={onToggleElevation}
-                >
-                  <Mountain className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Toggle Elevation (E)</p>
-              </TooltipContent>
-            </Tooltip>
-          </>
-        )}
 
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Zoom */}
-        <div className="flex items-center gap-1 bg-muted rounded-md px-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={onZoomOut}
-              >
-                <ZoomOut className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Zoom Out (Ctrl+-)</TooltipContent>
-          </Tooltip>
-
+        {/* 2D / 3D segmented */}
+        <div className="flex items-center rounded-md border bg-muted/40 p-0.5">
           <button
-            onClick={onZoomReset}
-            className="text-xs font-medium w-12 text-center hover:bg-accent rounded px-1 py-0.5"
+            type="button"
+            onClick={() => onViewModeChange("2d")}
+            className={`px-2 h-6 text-xs font-medium rounded-sm transition-colors ${
+              viewMode === "2d"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
-            {Math.round(zoom * 100)}%
+            2D
           </button>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={onZoomIn}
-              >
-                <ZoomIn className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Zoom In (Ctrl++)</TooltipContent>
-          </Tooltip>
+          <button
+            type="button"
+            onClick={() => onViewModeChange("3d")}
+            className={`px-2 h-6 text-xs font-medium rounded-sm transition-colors ${
+              viewMode === "3d"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            3D
+          </button>
         </div>
+
+        {/* Zoom — text-only readout, click to reset; +/- via hotkeys */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={onZoomReset}
+              className="text-xs font-medium tabular-nums w-11 text-center text-muted-foreground hover:text-foreground rounded h-7"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Reset zoom (Ctrl+0)</p>
+            <p className="text-xs text-muted-foreground">Ctrl + / − to zoom</p>
+          </TooltipContent>
+        </Tooltip>
+
+        <Separator orientation="vertical" className="h-5 mx-1" />
+
+        {/* Overflow: view toggles + clear */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuCheckboxItem checked={showGrid} onCheckedChange={onToggleGrid}>
+              <Grid3X3 className="h-4 w-4 mr-2" />
+              Grid <span className="ml-auto text-xs text-muted-foreground">G</span>
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={showRegions} onCheckedChange={onToggleRegions}>
+              <MapPin className="h-4 w-4 mr-2" />
+              Regions <span className="ml-auto text-xs text-muted-foreground">R</span>
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={showAssociations} onCheckedChange={onToggleAssociations}>
+              <Link2 className="h-4 w-4 mr-2" />
+              Associations <span className="ml-auto text-xs text-muted-foreground">A</span>
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={showElevation} onCheckedChange={onToggleElevation}>
+              <Mountain className="h-4 w-4 mr-2" />
+              Elevation <span className="ml-auto text-xs text-muted-foreground">E</span>
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onClear} className="text-destructive">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear all
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </TooltipProvider>
   )

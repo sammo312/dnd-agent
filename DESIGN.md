@@ -1,7 +1,7 @@
-# Design System — The Living Stage
+# Design System
 
 ## Product Context
-- **What this is:** An AI-directed theatrical RPG engine where the AI DM controls a 3D world in real time
+- **What this is:** An AI-directed RPG engine where the AI DM controls a 3D world in real time
 - **Who it's for:** RPG players and game masters who want AI-powered tabletop experiences
 - **Space/industry:** Multiplayer AI gaming, virtual tabletop
 - **Project type:** Web app (two Next.js apps with 3D rendering via React Three Fiber)
@@ -97,7 +97,7 @@ This is a dark-only product. No light mode. The warm near-black backgrounds ARE 
 - **Duration:** micro(50-100ms) short(150-250ms) medium(250-400ms) long(400-700ms)
 - **Specific animations (from /plan-design-review):**
   - Fog reveal: 3s easeInQuad (slow start, accelerating finish)
-  - Entity spawn: 0.5s easeOutBack (bounce overshoot, "placed on stage")
+  - Entity spawn: 0.5s easeOutBack (bounce overshoot)
   - Entity despawn: 0.5s fade-out
   - Terminal expand/collapse: 0.3s ease-out
   - Message fade-in: 0.15s ease-out
