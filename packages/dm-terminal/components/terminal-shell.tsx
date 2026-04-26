@@ -235,13 +235,34 @@ export function TerminalShell({
           const existing = story.nodes.find(
             (n) => n.type === "section" && (n.data as Section).name === name,
           );
+          // Idempotent: if a section with the same name *and* kind
+          // already exists, return success pointing at the existing
+          // section. The executor model frequently retries `createChapter`
+          // on cross-turn builds (auto mode, big maps) and the previous
+          // hard-error wasted 3-5 tool calls per turn, which compounded
+          // into rate-limit failures. Only error when there's a real
+          // conflict (same name, different kind).
           if (existing) {
+            const existingData = existing.data as Section;
+            if (existingData.kind === requestedKind) {
+              return {
+                ok: true,
+                chapterId: existing.id,
+                kind: existingData.kind,
+                alreadyExisted: true,
+              };
+            }
             return {
               ok: false,
-              error: `Section "${name}" already exists. Use addDialogueNode to add to it.`,
+              error: `Section "${name}" already exists with kind "${existingData.kind}", but you asked for "${requestedKind}". Pick a different name or use the existing section via addDialogueNode.`,
             };
           }
           if (requestedKind === "preface") {
+            // The "only one preface per project" invariant is real and
+            // worth keeping — but if the executor is asking for a
+            // *named* preface and one of a different name exists, the
+            // existing-name branch above already covered the same-name
+            // case. So this only fires when the names differ.
             const prefaceExists = story.nodes.some(
               (n) =>
                 n.type === "section" &&
