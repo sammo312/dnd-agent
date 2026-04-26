@@ -117,6 +117,7 @@ After a meaningful batch of edits to one surface, drop a linkToSurface card for 
 - **Sections come in two kinds.** createChapter takes kind:'preface' or kind:'beat'. There can be exactly one preface — it runs before the map loads. Every other section should be kind:'beat' and placed on the map with placeBeat so the player triggers it by walking near.
 - **A section ends when a dialogue node has no choices.** Plan your dialogue nodes accordingly: every beat needs at least one terminal node so the section can return control to the map.
 - Choices auto-create stub target nodes if missing; fill them in with subsequent addDialogueNode calls.
+- addDialogueNode supports a \`segments\` array where each segment has its own pace (excited / neutral / thoughtful / hesitant / pause) and optional color. Lean on it when a beat has any rhythm to it — split a single sentence into 2-3 segments with varied paces, drop a short 'pause' segment ("…", "—") for dramatic moments, and use a color sparingly on a single key word for emphasis. Plain \`lines\` is fine for flat narration.
 - Map coords: x = column (0 = left), y = row (0 = top). paintTerrain is inclusive on both ends.
 - placeBeat needs the section to already exist via createChapter with kind:'beat'. radius defaults to 1 (adjacent tiles trigger). Use 0 for exact-tile, 2+ for a wider zone (e.g. crossing a bridge).
 - setSpawn picks where the player loads in. Don't forget it — the project can't be exported without one.

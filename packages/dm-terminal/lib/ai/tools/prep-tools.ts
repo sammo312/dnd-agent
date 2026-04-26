@@ -75,7 +75,7 @@ export const createChapterTool = tool({
 
 export const addDialogueNodeTool = tool({
   description:
-    "Add a dialogue node to a chapter. Each node is a single beat — a chunk of narration or NPC speech the player will see, plus optional choices that branch to other nodes.",
+    "Add a dialogue node to a chapter. Each node is a single beat — a chunk of narration or NPC speech the player will see, plus optional choices that branch to other nodes. Dialogue is broken into typed-out segments; each segment can have its own pace (excited / neutral / thoughtful / hesitant / pause) and optional emphasis color. Vary pace within a node for natural rhythm — drop a 'pause' segment containing '...' for dramatic beats. You can pass either `segments` (richer, preferred) or plain `lines` (each line becomes one neutral segment).",
   parameters: z.object({
     chapterName: z
       .string()
@@ -88,10 +88,51 @@ export const addDialogueNodeTool = tool({
     speaker: z
       .string()
       .describe("'Narrator' or the NPC's name."),
+    segments: z
+      .array(
+        z.object({
+          text: z
+            .string()
+            .describe(
+              "Text content of this segment. Keep IN-FICTION — this is what the player reads."
+            ),
+          pace: z
+            .enum([
+              "excited",
+              "neutral",
+              "thoughtful",
+              "hesitant",
+              "pause",
+            ])
+            .optional()
+            .describe(
+              "Per-character typing pace. Default 'neutral'. 'pause' is great for '...' beats and dramatic moments."
+            ),
+          color: z
+            .enum([
+              "red",
+              "green",
+              "blue",
+              "yellow",
+              "magenta",
+              "cyan",
+              "white",
+            ])
+            .optional()
+            .describe(
+              "Optional emphasis color for a word or phrase. Use sparingly — usually only for a key noun or threat."
+            ),
+        })
+      )
+      .optional()
+      .describe(
+        "Preferred richer form: 2-8 segments per node. Split a single sentence into multiple segments to vary pace mid-line, e.g. ['I…', 'I think we should run.'] with the first segment as 'hesitant' and the second as 'neutral'."
+      ),
     lines: z
       .array(z.string())
+      .optional()
       .describe(
-        "1-4 short text segments. Each becomes its own typed-out line for the player. Keep IN-FICTION — this is what the player reads."
+        "Simple fallback: each string becomes one neutral segment. Use `segments` instead when pacing matters."
       ),
     choices: z
       .array(

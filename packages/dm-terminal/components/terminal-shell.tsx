@@ -254,6 +254,9 @@ export function TerminalShell({
           const chapterName = String(args.chapterName ?? "");
           const nodeId = String(args.nodeId ?? "");
           const speaker = String(args.speaker ?? "Narrator");
+          const segmentsArg = args.segments as
+            | { text: string; pace?: string; color?: string }[]
+            | undefined;
           const lines = (args.lines as string[]) ?? [];
           const choices =
             (args.choices as { label: string; targetNodeId: string }[]) ?? [];
@@ -275,10 +278,46 @@ export function TerminalShell({
             .indexOf(sectionStoreNode);
           const dialogueCount = story.nodes.filter((n) => n.type === "dialogue").length;
 
+          // Map agent-friendly pace labels and color names to the
+          // story-store's per-character ms speed and hex colors.
+          const PACE_MS: Record<string, number> = {
+            excited: 30,
+            neutral: 60,
+            thoughtful: 115,
+            hesitant: 200,
+            pause: 400,
+          };
+          const COLOR_HEX: Record<string, string> = {
+            red: "#ff5555",
+            green: "#55ff55",
+            blue: "#5555ff",
+            yellow: "#ffff55",
+            magenta: "#ff55ff",
+            cyan: "#55ffff",
+            white: "#ffffff",
+          };
+
+          const dialogueSegments =
+            segmentsArg && segmentsArg.length > 0
+              ? segmentsArg.map((s) => {
+                  const speed =
+                    s.pace && PACE_MS[s.pace] !== undefined
+                      ? PACE_MS[s.pace]
+                      : 60;
+                  const color =
+                    s.color && COLOR_HEX[s.color] ? COLOR_HEX[s.color] : undefined;
+                  return {
+                    text: String(s.text ?? ""),
+                    speed,
+                    style: color ? { color } : undefined,
+                  };
+                })
+              : lines.map((t) => ({ text: t, speed: 60 }));
+
           const nodeData: DialogueNode = {
             id: nodeId,
             speaker,
-            dialogue: lines.map((t) => ({ text: t, speed: 70 })),
+            dialogue: dialogueSegments,
             choices: choices.map((c) => ({ label: c.label, id: c.targetNodeId })),
           };
 
@@ -341,7 +380,7 @@ export function TerminalShell({
                 data: {
                   id: c.targetNodeId,
                   speaker: "Narrator",
-                  dialogue: [{ text: "(stub — fill me in)", speed: 70 }],
+                  dialogue: [{ text: "(stub — fill me in)", speed: 60 }],
                   choices: [],
                 } as DialogueNode,
               });
