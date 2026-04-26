@@ -18,7 +18,7 @@ import {
   type ExportSummary,
 } from "../lib/game/command-router";
 import type { CommandResult } from "../lib/game/command-router";
-import { buildProject, downloadProject } from "../lib/export/project-export";
+import { runProjectExport } from "../lib/export/run-export";
 import { BANNER } from "../lib/terminal/ascii-art";
 import {
   formatNarration,
@@ -616,57 +616,14 @@ export function TerminalShell({
     },
     openSurface: (surface) => onOpenSurface?.(surface),
     exportProject: ({ force } = {}): ExportSummary => {
-      const story = useStoryStore.getState();
-      const dm = useDmContextStore.getState();
-      const mapExport = useMapStore.getState().exportSnapshot;
-
-      if (!mapExport) {
-        return {
-          ok: false,
-          downloaded: false,
-          errorCount: 1,
-          warningCount: 0,
-          errors: [
-            "Map state hasn't been published yet. Open the Map Editor tab once and try again.",
-          ],
-          warnings: [],
-        };
-      }
-
-      const result = buildProject(
-        { nodes: story.nodes },
-        {
-          scene: dm.scene,
-          characters: dm.characters.map((c) => ({
-            id: c.id,
-            name: c.name,
-            role: c.role,
-            description: c.description,
-            motivation: c.motivation,
-          })),
-        },
-        mapExport,
-      );
-
-      const errors = result.issues
-        .filter((i) => i.level === "error")
-        .map((i) => i.message);
-      const warnings = result.issues
-        .filter((i) => i.level === "warning")
-        .map((i) => i.message);
-
-      const shouldDownload = result.ok || !!force;
-      if (shouldDownload) {
-        downloadProject(result.project);
-      }
-
+      const summary = runProjectExport({ force });
       return {
-        ok: result.ok,
-        downloaded: shouldDownload,
-        errorCount: errors.length,
-        warningCount: warnings.length,
-        errors,
-        warnings,
+        ok: summary.ok,
+        downloaded: summary.downloaded,
+        errorCount: summary.errors.length,
+        warningCount: summary.warnings.length,
+        errors: summary.errors,
+        warnings: summary.warnings,
       };
     },
   }).current;

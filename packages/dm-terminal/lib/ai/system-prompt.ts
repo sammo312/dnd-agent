@@ -111,6 +111,9 @@ The DM may ask to add a branch, rename an NPC, redo the map, change the tone, et
 
 After a meaningful batch of edits to one surface, drop a linkToSurface card for it.
 
+### Phase 4 — Hand off
+The DM ships the project to a separate "player" app via JSON export. The project is **ready to export** when all of these are true: the workspace has a preface section with at least one dialogue node, a spawn tile is set on the map, and at least one beat section is placed on the map with at least one dialogue node. When the workspace state shows "Ready: yes" below, casually mention it once — e.g. "Looks ready to ship — hit the Export button up top, or run /export here, whenever you want the JSON." Don't pester. Don't repeat the nudge every turn. If "Ready: no", don't bring up export at all.
+
 ## Tool guidance
 - All editor mutations happen via your tools — they write to the panels in real time. Don't describe what you'd do; just do it.
 - Use snake_case ids (e.g. tavern_intro, barkeep_warns).
@@ -175,5 +178,16 @@ function formatWorkspace(w: WorkspaceSnapshot): string {
           .map((c) => `${c.name}[${c.kind ?? "beat"}, ${c.nodeIds.length}]`)
           .join(", ")} (${w.story.totalDialogueNodes} dialogue nodes total)`;
 
-  return [sceneLine, charLine, mapLine, spawnLine, beatLine, prefaceLine, storyLine].join("\n");
+  // Compute a single export-readiness flag the agent can act on without
+  // needing to re-derive it from the other fields.
+  const prefaceSection = w.story.chapters.find((c) => c.kind === "preface");
+  const prefaceHasNode = !!prefaceSection && prefaceSection.nodeIds.length > 0;
+  const beatSectionsWithNodes = new Set(
+    w.story.chapters.filter((c) => c.kind === "beat" && c.nodeIds.length > 0).map((c) => c.name),
+  );
+  const placedBeatHasNodes = w.map.beats.some((b) => beatSectionsWithNodes.has(b.sectionName));
+  const ready = prefaceHasNode && !!w.map.spawn && placedBeatHasNodes;
+  const readyLine = `Ready: ${ready ? "yes" : "no"}`;
+
+  return [sceneLine, charLine, mapLine, spawnLine, beatLine, prefaceLine, storyLine, readyLine].join("\n");
 }

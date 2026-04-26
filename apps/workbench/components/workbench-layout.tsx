@@ -10,6 +10,8 @@ import { MapEditorPanel } from "./panels/map-editor-panel";
 import { NarrativePanel } from "./panels/narrative-panel";
 import { DmTerminalPanel } from "./panels/dm-terminal-panel";
 import { CommandPalette } from "./command-palette";
+import { ExportButton } from "./export-button";
+import { Toaster } from "@dnd-agent/ui/components/ui/sonner";
 import { useWorkbenchStore } from "@/lib/workbench-store";
 import { useWorkbenchShortcuts } from "@/hooks/use-workbench-shortcuts";
 
@@ -64,13 +66,15 @@ export function WorkbenchLayout() {
   );
 
   return (
-    <div className="h-screen w-screen">
+    <div className="relative h-screen w-screen">
       <DockviewReact
         className="dockview-theme-abyss"
         onReady={onReady}
         components={components}
       />
+      <ExportButton />
       <CommandPalette />
+      <Toaster position="bottom-right" />
     </div>
   );
 }

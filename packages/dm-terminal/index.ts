@@ -17,6 +17,11 @@ export {
   type ExportSummary,
 } from "./lib/game/command-router";
 export {
+  runProjectExport,
+  type ProjectExportSummary,
+  type RunProjectExportOptions,
+} from "./lib/export/run-export";
+export {
   buildProject,
   downloadProject,
   PROJECT_EXPORT_VERSION,
