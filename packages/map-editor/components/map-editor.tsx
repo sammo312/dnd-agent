@@ -700,31 +700,33 @@ export function MapEditor() {
     />
   )}
 
-        {/* Right Panel */}
-        <RightPanel
-          selectedPOI={selectedPlacedPOI}
-          selectedRegion={selectedRegionData}
-          selectedBeat={selectedNarrativeBeat}
-          selectedCell={selectedCell}
-          cells={cells}
-          narrativeSchema={narrativeSchema}
-          allPOIs={pois}
-          allBeats={narrativeBeats}
-          onRenamePOI={handlePOIRename}
-          onDeletePOI={handlePOIDelete}
-          onRenameRegion={handleRegionRename}
-          onDeleteRegion={handleRegionDelete}
-          onRenameBeat={handleNarrativeBeatRename}
-          onDeleteBeat={handleNarrativeBeatDelete}
-          onUpdatePOIAssociations={handleUpdatePOIAssociations}
-          onUpdateBeatAssociations={handleUpdateBeatAssociations}
-          onUpdatePOIGltfUrl={handleUpdatePOIGltfUrl}
-          onCellElevationChange={handleCellElevationChange}
-          mapWidth={mapWidth}
-          mapHeight={mapHeight}
-          onResizeMap={handleResizeMap}
-          collapsed={isRightCollapsed}
-        />
+        {/* Right Panel — only shown when something is selected */}
+        {(selectedPlacedPOI || selectedRegionData || selectedNarrativeBeat || selectedCell) && (
+          <RightPanel
+            selectedPOI={selectedPlacedPOI}
+            selectedRegion={selectedRegionData}
+            selectedBeat={selectedNarrativeBeat}
+            selectedCell={selectedCell}
+            cells={cells}
+            narrativeSchema={narrativeSchema}
+            allPOIs={pois}
+            allBeats={narrativeBeats}
+            onRenamePOI={handlePOIRename}
+            onDeletePOI={handlePOIDelete}
+            onRenameRegion={handleRegionRename}
+            onDeleteRegion={handleRegionDelete}
+            onRenameBeat={handleNarrativeBeatRename}
+            onDeleteBeat={handleNarrativeBeatDelete}
+            onUpdatePOIAssociations={handleUpdatePOIAssociations}
+            onUpdateBeatAssociations={handleUpdateBeatAssociations}
+            onUpdatePOIGltfUrl={handleUpdatePOIGltfUrl}
+            onCellElevationChange={handleCellElevationChange}
+            mapWidth={mapWidth}
+            mapHeight={mapHeight}
+            onResizeMap={handleResizeMap}
+            collapsed={isRightCollapsed}
+          />
+        )}
       </div>
     </div>
   )

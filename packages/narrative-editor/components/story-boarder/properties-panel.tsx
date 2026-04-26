@@ -24,12 +24,7 @@ export function PropertiesPanel() {
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
   if (!selectedNode) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-6 text-center">
-        <MessageSquare className="w-12 h-12 mb-4 opacity-50" />
-        <p className="text-sm">Select a node to edit its properties</p>
-      </div>
-    );
+    return null;
   }
 
   const isSection = selectedNode.type === "section";

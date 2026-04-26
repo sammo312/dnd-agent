@@ -23,6 +23,7 @@ const components: Record<string, React.FC<IDockviewPanelProps>> = {
 
 export function WorkbenchLayout() {
   const setDockviewApi = useWorkbenchStore((s) => s.setDockviewApi);
+  const markPanelClosed = useWorkbenchStore((s) => s.markPanelClosed);
 
   useWorkbenchShortcuts();
 
@@ -63,8 +64,13 @@ export function WorkbenchLayout() {
       } catch {
         // sizing may fail if layout not ready yet
       }
+
+      // Sync state when Dockview's built-in X button removes a panel
+      api.onDidRemovePanel((panel) => {
+        markPanelClosed(panel.id);
+      });
     },
-    [setDockviewApi]
+    [setDockviewApi, markPanelClosed]
   );
 
   return (

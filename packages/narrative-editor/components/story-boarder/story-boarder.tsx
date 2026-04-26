@@ -2,12 +2,13 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useContainerSize } from "@dnd-agent/ui/hooks/use-container-size";
+import { useStoryStore } from "../../lib/story-store";
 import { Toolbar } from "./toolbar";
 import { StoryCanvas } from "./story-canvas";
 import { PropertiesPanel } from "./properties-panel";
 import { Button } from "@dnd-agent/ui/components/button";
 import { ScrollArea } from "@dnd-agent/ui/components/scroll-area";
-import { Settings2, X } from "lucide-react";
+import { Settings2, X, PanelRightClose, PanelRightOpen } from "lucide-react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -19,10 +20,14 @@ export function StoryBoarder() {
   const { width: containerWidth } = useContainerSize(containerRef);
   const isNarrow = containerWidth > 0 && containerWidth < 600;
 
+  const selectedNodeId = useStoryStore((s) => s.selectedNodeId);
+
+  // Properties panel state — overlay in narrow, collapsible inline in wide
   const [propertiesOpen, setPropertiesOpen] = useState(false);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
   const propertiesRef = useRef<HTMLDivElement>(null);
 
-  // Close properties overlay when clicking outside
+  // Close properties overlay when clicking outside (narrow mode)
   useEffect(() => {
     if (!propertiesOpen || !isNarrow) return;
     const handleMouseDown = (e: MouseEvent) => {
@@ -41,35 +46,6 @@ export function StoryBoarder() {
 
   return (
     <div ref={containerRef} className="h-full flex flex-col bg-background">
-      {/* Header - hidden in narrow mode since dockview tab shows the title */}
-      {!isNarrow && (
-        <header className="flex items-center justify-between px-4 py-2 border-b border-border bg-sidebar">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="w-5 h-5 text-primary-foreground"
-                >
-                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                  <path d="M2 17l10 5 10-5" />
-                  <path d="M2 12l10 5 10-5" />
-                </svg>
-              </div>
-              <h1 className="font-semibold text-foreground">Story Boarder</h1>
-            </div>
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-              Node Editor
-            </span>
-          </div>
-        </header>
-      )}
-
       {/* Toolbar */}
       <Toolbar compact={isNarrow} />
 
@@ -79,18 +55,20 @@ export function StoryBoarder() {
         <div className="flex-1 relative overflow-hidden">
           <StoryCanvas />
 
-          {/* Floating properties button */}
-          <Button
-            variant="secondary"
-            size="icon"
-            className="absolute bottom-4 right-4 z-20 h-10 w-10 rounded-full shadow-lg"
-            onClick={() => setPropertiesOpen(!propertiesOpen)}
-          >
-            <Settings2 className="h-5 w-5" />
-          </Button>
+          {/* Floating properties button — only when a node is selected */}
+          {selectedNodeId && (
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute bottom-4 right-4 z-20 h-10 w-10 rounded-full shadow-lg"
+              onClick={() => setPropertiesOpen(!propertiesOpen)}
+            >
+              <Settings2 className="h-5 w-5" />
+            </Button>
+          )}
 
           {/* Properties overlay panel */}
-          {propertiesOpen && (
+          {propertiesOpen && selectedNodeId && (
             <div
               ref={propertiesRef}
               className="absolute top-0 right-0 bottom-0 w-72 max-w-[80%] z-30 bg-card border-l border-border shadow-lg flex flex-col animate-in slide-in-from-right duration-200"
@@ -113,18 +91,47 @@ export function StoryBoarder() {
           )}
         </div>
       ) : (
-        // Wide mode: existing resizable panel layout
-        <ResizablePanelGroup direction="horizontal" className="flex-1">
-          <ResizablePanel defaultSize={60} minSize={30}>
+        // Wide mode: canvas + properties only when selected
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 relative">
             <StoryCanvas />
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={40} minSize={25} maxSize={60}>
-            <div className="h-full bg-card border-l border-border">
-              <PropertiesPanel />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+          </div>
+
+          {/* Properties panel — only shown when a node is selected, manually collapsible */}
+          {selectedNodeId && (
+            panelCollapsed ? (
+              <div className="w-10 border-l border-border bg-card flex flex-col items-center pt-2 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setPanelCollapsed(false)}
+                  title="Show properties"
+                >
+                  <PanelRightOpen className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="w-80 border-l border-border bg-card flex flex-col shrink-0">
+                <div className="flex items-center justify-between px-3 py-1.5 border-b border-border">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Properties</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setPanelCollapsed(true)}
+                    title="Hide properties"
+                  >
+                    <PanelRightClose className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <PropertiesPanel />
+                </div>
+              </div>
+            )
+          )}
+        </div>
       )}
     </div>
   );

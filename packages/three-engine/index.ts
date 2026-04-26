@@ -22,9 +22,13 @@ export { MovementHandler, WalkToTarget, ClickableGround } from "./components/cam
 export { TransitionFog } from "./components/effects/transition-fog"
 export { SkyController } from "./components/effects/sky-controller"
 
+// Entities
+export { EntityCapsule } from "./components/entities/entity-capsule"
+
 // Scenes
 export { EditorScene } from "./components/scenes/editor-scene"
 export { PlayerScene } from "./components/scenes/player-scene"
+export { DemoPlayerScene } from "./components/scenes/demo-player-scene"
 
 // Lib
 export { getTerrainColor, type TerrainColorEntry } from "./lib/terrain-utils"

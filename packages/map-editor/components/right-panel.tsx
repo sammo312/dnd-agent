@@ -330,13 +330,7 @@ export function RightPanel({
 
           <Separator />
 
-          {!hasSelection ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No selection</p>
-              <p className="text-xs">Select a POI, region, cell, or story beat</p>
-            </div>
-          ) : selectedCellData && !selectedPOI && !selectedRegion && !selectedBeat ? (
+          {selectedCellData && !selectedPOI && !selectedRegion && !selectedBeat ? (
             /* Cell Properties */
             <div className="space-y-4">
               <div className="space-y-3">
