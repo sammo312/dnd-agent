@@ -2,23 +2,52 @@
 
 import type { IDockviewPanelProps } from "dockview-react";
 import dynamic from "next/dynamic";
+import { useCallback } from "react";
+import { useWorkbenchStore } from "../../lib/workbench-store";
 
 const TerminalShell = dynamic(
   () => import("@dnd-agent/dm-terminal").then((m) => m.TerminalShell),
   {
     ssr: false,
     loading: () => (
-      <div className="h-full w-full flex items-center justify-center bg-[#0a0e14]">
-        <span className="text-gray-500 animate-pulse">Loading terminal...</span>
+      <div className="h-full w-full flex items-center justify-center bg-background">
+        <span className="text-muted-foreground animate-pulse font-mono text-sm">
+          loading terminal…
+        </span>
       </div>
     ),
-  }
+  },
 );
 
+const SURFACE_PANEL_IDS: Record<"map" | "story", string> = {
+  map: "map-editor",
+  story: "narrative-editor",
+};
+
 export const DmTerminalPanel: React.FC<IDockviewPanelProps> = () => {
+  const dockviewApi = useWorkbenchStore((s) => s.dockviewApi);
+  const restorePanel = useWorkbenchStore((s) => s.restorePanel);
+  const minimizedPanels = useWorkbenchStore((s) => s.minimizedPanels);
+
+  const handleOpenSurface = useCallback(
+    (surface: "map" | "story") => {
+      const panelId = SURFACE_PANEL_IDS[surface];
+      // If the panel is hidden or closed, restore it; restorePanel handles both.
+      if (minimizedPanels.has(panelId)) {
+        restorePanel(panelId);
+      }
+      // Then bring it to focus. Wait a tick so a freshly re-created panel exists.
+      requestAnimationFrame(() => {
+        const panel = dockviewApi?.getPanel(panelId);
+        panel?.focus();
+      });
+    },
+    [dockviewApi, restorePanel, minimizedPanels],
+  );
+
   return (
-    <div className="h-full w-full bg-[#0a0e14]">
-      <TerminalShell />
+    <div className="h-full w-full bg-background">
+      <TerminalShell onOpenSurface={handleOpenSurface} />
     </div>
   );
 };

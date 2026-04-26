@@ -219,6 +219,73 @@ export const addPOITool = tool({
   }),
 });
 
+/**
+ * Ask the DM a multi-choice question. The terminal opens an in-line
+ * picker (arrow-keys / 1-9 / enter / esc) and the agent receives the
+ * selected option (or `{ skipped: true }` if the DM hits esc).
+ *
+ * Use this whenever there's a meaningful fork — tone, scope, which
+ * NPC to flesh out next — and the answer changes what you'll do.
+ * Don't use it for free-form ideas; ask in plain text instead.
+ */
+export const askQuestionTool = tool({
+  description:
+    "Ask the DM a multi-choice question. The terminal renders an inline picker; the DM selects with arrow keys or 1-9. Use for forks where the choice steers what you build next. Skip it for free-form questions — just ask in prose.",
+  parameters: z.object({
+    question: z
+      .string()
+      .describe("The question. Short. e.g. 'Tone for this scene?'"),
+    description: z
+      .string()
+      .optional()
+      .describe(
+        "Optional one-line clarification shown under the question."
+      ),
+    choices: z
+      .array(
+        z.object({
+          value: z
+            .string()
+            .describe(
+              "Stable identifier returned to you. e.g. 'gothic_horror'. snake_case."
+            ),
+          label: z.string().describe("Display label, e.g. 'Gothic horror'"),
+          hint: z
+            .string()
+            .optional()
+            .describe(
+              "Optional dim subtitle, e.g. 'broody, candle-lit, cursed'"
+            ),
+        })
+      )
+      .min(2)
+      .max(6),
+  }),
+});
+
+/**
+ * Render a "link to surface" card in the terminal pointing at the
+ * Map Editor or Story Boarder. Use this AFTER finishing a meaningful
+ * batch of edits to give the DM a CTA card with a slash-command shortcut.
+ */
+export const linkToSurfaceTool = tool({
+  description:
+    "Drop a card in the terminal linking the DM to the Map Editor or Story Boarder. Use AFTER you've finished a batch of edits to one surface — gives the DM a CTA + slash-command shortcut. One card per surface per turn, max.",
+  parameters: z.object({
+    surface: z
+      .enum(["map", "story"])
+      .describe("Which surface the DM should review."),
+    title: z
+      .string()
+      .describe(
+        "2-4 word change header, e.g. 'map updated', 'opening beat ready'."
+      ),
+    summary: z
+      .string()
+      .describe("1-2 sentence summary of what changed and why it's worth a look."),
+  }),
+});
+
 export const dmPrepTools = {
   setSceneContext: setSceneContextTool,
   addCharacter: addCharacterTool,
@@ -227,6 +294,8 @@ export const dmPrepTools = {
   setMapDimensions: setMapDimensionsTool,
   paintTerrain: paintTerrainTool,
   addPOI: addPOITool,
+  askQuestion: askQuestionTool,
+  linkToSurface: linkToSurfaceTool,
 };
 
 export type DmPrepToolName = keyof typeof dmPrepTools;

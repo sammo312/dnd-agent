@@ -1,4 +1,4 @@
-import { ANSI, colorize } from './ansi';
+import { ANSI } from './ansi';
 
 export function formatNarration(text: string): string {
   let formatted = text;
@@ -23,21 +23,35 @@ export function formatSystemMessage(text: string): string {
   return `${ANSI.system}${text}${ANSI.reset}`;
 }
 
+export function formatStatus(text: string): string {
+  return `${ANSI.dimText}∙ ${text}${ANSI.reset}\r\n`;
+}
+
 export function formatError(text: string): string {
   return `${ANSI.error}Error: ${text}${ANSI.reset}`;
 }
 
+/**
+ * Amber CRT-phosphor prompt sigil per DESIGN.md.
+ * `›` is rendered in the accent-amber tone with a leading space for breathing
+ * room, then the input itself is in text-primary so what the DM types is
+ * brighter than the prompt.
+ */
 export function formatPrompt(): string {
-  return `\r\n${ANSI.system}> ${ANSI.input}`;
+  return `\r\n${ANSI.amber}›${ANSI.reset} ${ANSI.input}`;
 }
 
 export function formatWelcome(): string {
   return (
-    `${ANSI.system}DM prep assistant.${ANSI.reset} ${ANSI.dimText}Describe a scene you want to run and I'll sketch it into the Story Boarder and Map Editor.${ANSI.reset}\r\n` +
-    `${ANSI.dimText}Commands: /roll <dice>, /clear, /help${ANSI.reset}\r\n`
+    `${ANSI.text}DM prep assistant.${ANSI.reset} ${ANSI.dimText}Describe a scene you want to run and I'll sketch it into the Story Boarder and Map Editor.${ANSI.reset}\r\n` +
+    `${ANSI.dimText}/auto · /map · /story · /roll · /clear · /help${ANSI.reset}\r\n`
   );
 }
 
+/**
+ * Quiet single-line breadcrumb for an agent tool call.
+ * Renders as `  ∙ tool · args` in dim text — read-only telemetry, not a CTA.
+ */
 export function formatToolCall(label: string): string {
-  return `${ANSI.dimText}  → ${label}${ANSI.reset}\r\n`;
+  return `  ${ANSI.dimText}∙ ${label}${ANSI.reset}\r\n`;
 }
