@@ -278,6 +278,10 @@ export function TerminalShell({
           }
           const sectionCount = story.nodes.filter((n) => n.type === "section").length;
           const id = `section_${name}`;
+          // Deterministic placeholder id keyed off the section name so
+          // `addDialogueNode` can recognize and replace it later when
+          // the agent adds the section's first real node.
+          const placeholderId = `${name}__placeholder`;
           story.addNode({
             id,
             type: "section",
@@ -286,9 +290,42 @@ export function TerminalShell({
               id: name,
               name,
               title: String(args.title ?? name),
+              // Will be overwritten to `placeholderId` by the
+              // `addConnection` call below — the store's section→dialogue
+              // edge auto-populates the section's start_id.
               start_id: "",
               kind: requestedKind,
             } as Section,
+          });
+          // Seed a placeholder dialogue node + connection so the section
+          // is exportable from the moment of creation. Without this, an
+          // agent that creates the section and then runs out of tool
+          // budget (rate limit, hit max steps, user interrupt) leaves
+          // the project in a malformed state where export blocks on
+          // "Section X has no start node." With it, the worst case is
+          // a clearly-labeled placeholder line in the editor — visible,
+          // non-blocking, easy for the user to fill in.
+          story.addNode({
+            id: placeholderId,
+            type: "dialogue",
+            position: { x: 450, y: 100 + sectionCount * 380 },
+            data: {
+              id: placeholderId,
+              speaker: "Narrator",
+              dialogue: [
+                {
+                  text: "(empty section — replace with your opening line)",
+                  speed: 60,
+                },
+              ],
+              choices: [],
+            } as DialogueNode,
+          });
+          story.addConnection({
+            id: `conn_${id}_${placeholderId}`,
+            from: id,
+            to: placeholderId,
+            label: "starts",
           });
           return { ok: true, chapterId: id, kind: requestedKind };
         }
@@ -382,11 +419,17 @@ export function TerminalShell({
             story.addNode(newNode);
           }
 
+          // Detect the placeholder seeded by `createChapter` so we can
+          // promote the agent's first real node over it instead of
+          // leaving the placeholder as the section's start. The
+          // placeholder id is deterministic (`${sectionName}__placeholder`).
+          const placeholderId = `${chapterName}__placeholder`;
+          const startIsPlaceholder = sectionData.start_id === placeholderId;
           const explicitStart = args.isStart === true;
           const noStartYet = !sectionData.start_id;
-          const shouldBeStart = explicitStart || noStartYet;
+          const shouldBeStart = explicitStart || noStartYet || startIsPlaceholder;
 
-          if (shouldBeStart) {
+          if (shouldBeStart && nodeId !== placeholderId) {
             story.updateNode(sectionStoreNode.id, {
               start_id: nodeId,
             } as Partial<Section>);
@@ -399,6 +442,15 @@ export function TerminalShell({
                 to: nodeId,
                 label: "starts",
               });
+            }
+            // If the previous start was a placeholder we seeded, drop
+            // it. `deleteNode` also cleans up its dangling section→
+            // placeholder connection in the same set() call.
+            if (
+              startIsPlaceholder &&
+              useStoryStore.getState().nodes.some((n) => n.id === placeholderId)
+            ) {
+              useStoryStore.getState().deleteNode(placeholderId);
             }
           }
 
