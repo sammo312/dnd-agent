@@ -27,6 +27,7 @@
 import { tool, generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
+import { TERRAIN_TEMPLATES_PROMPT } from "../terrain-templates";
 
 // Same gateway setup as the chat route. The planner call lives inside
 // the same lambda, so it shares the AI_GATEWAY_API_KEY env var that's
@@ -45,16 +46,9 @@ A single design brief in plain prose, structured like this — keep section head
 
 THEME — one sentence on tone, genre, vibe.
 CHARACTERS — bulleted list, max 4. For each: name, role, one-sentence personality hook the executor can use when writing dialogue.
-MAP — pick non-square dimensions that fit the scene's natural shape. A wandered forest path is long and narrow (50×25). A coastal town is wide (55×35). A mountain pass is tall and pinched (25×50). Square (40×40) is the boring default — only use it when the scene genuinely is a square arena. Stay between 25 and 60 on each axis.
+MAP — name the terrain template that best fits (Island, Volcano, Forest, Coastline, Mountain Pass, River Valley, Desert Ruins, Frozen Tundra, or "custom" if none fit), then give the executor a tight layer-by-layer paint plan adapted to your dimensions. Format each layer as one short sentence with rough tile bounds, e.g. "L1 base: deep-water full container", "L2 landmass: grass overlapping rectangles centered on (24,18)", "L3 hill: rock cluster (20,15)→(28,20)". 4-6 layers, each translating to one paintTerrain call. Lean on the templates section below for the recipe — adapt freely, don't reproduce them verbatim.
 
-Then design the topography in LAYERS, not a flat fill. Specify three to five distinct terrain bands or features and HOW they overlap to break up the rectangle:
-  - One base terrain (grass, sand, dirt) covering most of the map.
-  - One ELEVATED region using mountain (+2), rock (+1), or snow (+1) tiles — a ridge along an edge, a single peak, a horseshoe of hills, a plateau. Pick a shape that creates an interesting silhouette, not a stripe across the whole map.
-  - One LOW or wet feature using water (-1), deep-water (-2), or swamp (-1) — a meandering river that cuts diagonally, a coastline along one edge, a pond, a swampy hollow. Rivers and coasts especially shouldn't be straight lines; describe them with at least one bend.
-  - One textural overlay — patches of forest, rocky outcrops, sand dunes — scattered, NOT a clean rectangle.
-  - Optional: a road or path (dirt-road / paved-road) connecting key POIs, ideally curving around the elevated region rather than going through it.
-
-Describe each layer in one short sentence with rough tile bounds, e.g. "river: water tiles from (0,18) snaking east to (40,12), bending south around the hill". The executor will translate each layer into one paintTerrain call, so don't enumerate every tile — give shapes the executor can sketch in 3-5 rectangles per layer.
+Pick non-square dimensions to match the chosen template's silhouette. Stay between 25 and 60 on each axis.
 NARRATIVE POIS — bulleted list, max 4 for a first-pass plan. These are the landmarks with story weight: tavern, ruin, mansion, well, watchtower, mine, bridge, named statue, etc. For each: name, POI type from the catalog, approximate tile coords, and ONE sentence describing what the player sees when they walk up. Every narrative POI must have a beat — include a tiny 1-2 sentence dialogue snippet the executor can use as the beat content.
 
 SCENERY DRESSING — separate bulleted list, 4-8 entries describing CLUSTERS of decorative POIs (no beats, pure visual texture). Use only these types: tree-single, flower-bed, fence-wood, fence-stone, fence-iron, torch, banner. For each cluster, describe the shape and location, e.g.:
@@ -72,7 +66,9 @@ BEATS — for each NARRATIVE POI (not scenery), a short approach beat (1-2 short
 - Prefer a TIGHT, COHERENT first pass over a maximalist one. The executor has a tool budget per turn — overdesigning means rate-limit failures, not richness.
 - All in-fiction prose (preface, beat snippets) is for the player's eyes. Plain narration by default; reserve excited/thoughtful/hesitant pace for character dialogue, not narration.
 - Do not output JSON. Do not output tool call syntax. Do not number the sections. Just the design brief.
-- Do not preamble. Do not say "Here's the plan:". Start with "THEME — ..." on the first line.`;
+- Do not preamble. Do not say "Here's the plan:". Start with "THEME — ..." on the first line.
+
+${TERRAIN_TEMPLATES_PROMPT}`;
 
 export const plannerTool = tool({
   description:

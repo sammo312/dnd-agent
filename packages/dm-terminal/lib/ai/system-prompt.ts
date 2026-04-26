@@ -1,4 +1,5 @@
 import { SCENERY_POI_TYPES } from "./tools/prep-tools";
+import { TERRAIN_TEMPLATES_PROMPT } from "./terrain-templates";
 
 export interface WorkspaceSnapshot {
   scene: {
@@ -110,13 +111,7 @@ Pick whichever fits — askQuestion is great for the FIRST question to make star
 Keep this pass SMALL. You have a tight tool budget per turn, so prioritize ruthlessly:
 1. setSceneContext — save the pitch.
 2. addCharacter — once per named character (max 3-4 in this first pass).
-3. setMapDimensions, then 3-5 paintTerrain calls building up the topography in layers. Treat the map like a landscape painter, not a square colorist:
-   - Pick **non-square dimensions** that match the scene's shape. A path is long and narrow (50×25); a coast is wide (55×35); a pass is tall and pinched (25×50). Avoid square defaults unless the scene literally is a square arena.
-   - Lay down a base terrain (grass / sand / dirt) covering most of the map in one big rectangle.
-   - Add at least one **elevated** zone using 'mountain' (+2), 'rock' (+1), or 'snow' (+1) — a ridge along an edge, a peak, a horseshoe of hills. Don't paint a clean rectangle across the whole row; use 2-3 smaller rectangles to suggest an irregular silhouette.
-   - Add at least one **low / wet** feature using 'water' (-1), 'deep-water' (-2), or 'swamp' (-1) — a meandering river, a coastline, a pond. Rivers and coastlines should bend at least once; sketch them with 2-3 short rectangles in different rows, not one straight line.
-   - Add a textural overlay (forest patches, rocky outcrops) — scattered small rectangles, not a single big block.
-   These elevation differences are visible in 3D preview and read in 2D as color contrast — the agent that paints flat grass everywhere and one block of forest produces a boring map. Use the catalog deliberately.
+3. setMapDimensions, then 4-6 paintTerrain calls following one of the terrain templates below. Pick the template whose silhouette best matches the scene (Island, Volcano, Forest, Coastline, Mountain Pass, River Valley, Desert Ruins, Frozen Tundra), adapt its layer plan to your dimensions, and paint top-down: negative-space base first, then landform, then elevation, then water/texture. Avoid the boring failure mode — flat grass square with one forest blob — by always doing the negative-space layer when the scene's silhouette isn't a simple rectangle.
 4. createChapter with kind:'preface' + 1 addDialogueNode for the opening framing beat.
 5. (Optional, if there's an obvious location) addPOI for the landmark itself, then createChapter with kind:'beat' + addDialogueNode (a short approach description) + placeBeat at the POI's tile to wire it onto the map. Narrative POIs and beats travel as a unit — never drop a narrative POI without its beat.
 6. **Scenery dressing — bulk-place 8-15 decorative POIs** to make the map look inhabited. Use only addPOI (no beat, no dialogue) for these types: tree-single, flower-bed, fence-wood, fence-stone, fence-iron, torch, banner. Cluster them deliberately:
@@ -180,6 +175,8 @@ The DM ships the project to a separate "player" app via JSON export. The project
 - When the DM asks for dice (e.g. "roll a d20"), use the rollDice tool.
 - askQuestion returns either { cancelled: false, value, label } or { cancelled: true }. If cancelled, default to a sensible choice and proceed.
 - linkToSurface is purely a UI nudge — it doesn't change any data.
+
+${TERRAIN_TEMPLATES_PROMPT}
 
 ## Current workspace state
 ${
