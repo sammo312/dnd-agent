@@ -71,6 +71,76 @@ function GLTFModel({ url, scale = 0.5 }: { url: string; scale?: number }) {
   return <primitive object={cloned} scale={scale} />;
 }
 
+/**
+ * Deterministic small-state PRNG. Same seed in → same numbers out,
+ * so a "tree" POI lays out the same on every render and a forest of
+ * trees doesn't shimmer when the camera pans.
+ */
+function mulberry32(seed: number) {
+  let t = seed >>> 0;
+  return () => {
+    t = (t + 0x6d2b79f5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashString(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return h >>> 0;
+}
+
+/**
+ * Three trees in a tight cluster, with stable random offsets and a
+ * gentle wind sway on the whole group. A single tree reads as "demo
+ * art"; three at varied scales read as "a real spot in the world".
+ */
+function TreeCluster({ scale, seed }: { scale: number; seed: number }) {
+  const rootRef = useRef<THREE.Group>(null);
+
+  const offsets = useMemo(() => {
+    const rng = mulberry32(seed);
+    return [
+      { x: 0, z: 0, s: scale, phase: rng() * Math.PI * 2 },
+      {
+        x: (rng() - 0.5) * 1.4,
+        z: (rng() - 0.5) * 1.4,
+        s: scale * (0.55 + rng() * 0.25),
+        phase: rng() * Math.PI * 2,
+      },
+      {
+        x: (rng() - 0.5) * 1.6,
+        z: (rng() - 0.5) * 1.6,
+        s: scale * (0.45 + rng() * 0.25),
+        phase: rng() * Math.PI * 2,
+      },
+    ];
+  }, [scale, seed]);
+
+  // Wind: a slow lean on the whole cluster, plus per-tree phase so
+  // they don't sway in lockstep. Small angles only — anything more
+  // than a few degrees and trees start to look like jelly.
+  useFrame((state) => {
+    if (!rootRef.current) return;
+    const t = state.clock.elapsedTime;
+    rootRef.current.children.forEach((child, i) => {
+      const phase = offsets[i]?.phase ?? 0;
+      child.rotation.z = Math.sin(t * 0.7 + phase) * 0.035;
+      child.rotation.x = Math.cos(t * 0.5 + phase) * 0.02;
+    });
+  });
+
+  return (
+    <group ref={rootRef}>
+      {offsets.map((o, i) => (
+        <RunescapeTree key={i} position={[o.x, 0, o.z]} scale={o.s} />
+      ))}
+    </group>
+  );
+}
+
 /** Tiny procedural cottage — flat-shaded, matches the Runescape props. */
 function ProceduralBuilding({ size }: { size: { w: number; h: number } }) {
   const w = Math.max(0.8, size.w * 0.9);
@@ -136,12 +206,11 @@ export function WorldProp({ poi, cells, playerPosition }: WorldPropProps) {
 
   // Stable but varied scale so a forest of trees doesn't look like a
   // photocopy. Hash from the POI id.
+  const seed = useMemo(() => hashString(poi.id), [poi.id]);
   const scale = useMemo(() => {
-    let h = 0;
-    for (let i = 0; i < poi.id.length; i++) h = (h * 31 + poi.id.charCodeAt(i)) | 0;
-    const norm = ((h >>> 0) % 1000) / 1000;
+    const norm = (seed % 1000) / 1000;
     return 0.85 + norm * 0.4; // 0.85..1.25
-  }, [poi.id]);
+  }, [seed]);
 
   const kind = useMemo(() => classifyPOI(poi), [poi]);
 
@@ -166,7 +235,7 @@ export function WorldProp({ poi, cells, playerPosition }: WorldPropProps) {
           <GLTFModel url={poi.gltfUrl} scale={0.5 * scale} />
         </Suspense>
       ) : kind === "tree" ? (
-        <RunescapeTree position={[0, 0, 0]} scale={scale} />
+        <TreeCluster scale={scale} seed={seed} />
       ) : kind === "rock" ? (
         <RunescapeRock position={[0, 0, 0]} scale={scale} />
       ) : kind === "bush" ? (

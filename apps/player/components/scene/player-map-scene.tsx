@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Sky } from "@react-three/drei";
+import { ContactShadows, Sky, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 import {
   MovementHandler,
@@ -200,13 +200,68 @@ export function PlayerMapScene({
         />
       )}
 
-      <ambientLight intensity={0.55} />
+      {/* Golden-hour lighting rig.
+          - Hemisphere light grounds objects in sky/ground color
+            (warm sky overhead, cool grass underneath) — way more
+            convincing than a flat ambient.
+          - Directional sun is dropped low on the horizon for long
+            warm shadows. Shadow camera is sized to the map so the
+            entire world shows contact, not just a 10×10 box. */}
+      <hemisphereLight
+        args={["#fde6b0", "#3b2f1a", 0.55]}
+      />
       <directionalLight
-        position={[map.width, Math.max(map.width, map.height), map.height]}
-        intensity={1.1}
+        position={[map.width * 0.85, Math.max(map.width, map.height) * 0.7, map.height * 0.2]}
+        intensity={1.4}
+        color="#ffd6a0"
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
+        shadow-camera-near={0.1}
+        shadow-camera-far={Math.max(map.width, map.height) * 3}
+        shadow-camera-left={-map.width}
+        shadow-camera-right={map.width}
+        shadow-camera-top={map.height}
+        shadow-camera-bottom={-map.height}
+        shadow-bias={-0.0005}
+      />
+      <ambientLight intensity={0.18} color="#7a8aa6" />
+
+      {/* Distance fog matched to the sky horizon — kills the
+          "edge of the world" look on big maps. */}
+      <fog
+        attach="fog"
+        args={[
+          "#dab9a0",
+          Math.max(map.width, map.height) * 0.4,
+          Math.max(map.width, map.height) * 1.4,
+        ]}
+      />
+
+      {/* Single-frame contact shadow plane covering the whole map.
+          frames={1} bakes once on mount so we don't pay the depth
+          pass every render — the world is largely static. */}
+      <ContactShadows
+        position={[map.width / 2, 0.02, map.height / 2]}
+        scale={Math.max(map.width, map.height) * 1.2}
+        resolution={1024}
+        far={6}
+        blur={2.4}
+        opacity={0.55}
+        frames={1}
+      />
+
+      {/* Drifting motes give the air physical depth. Scaled to the
+          whole map so the player walks through them rather than
+          past a single column. */}
+      <Sparkles
+        count={Math.min(220, map.width * map.height * 0.04)}
+        size={3.2}
+        speed={0.25}
+        opacity={0.45}
+        color="#fde6b0"
+        scale={[map.width, 4, map.height]}
+        position={[map.width / 2, 1.8, map.height / 2]}
       />
 
       {hasCells ? (
@@ -264,12 +319,15 @@ export function PlayerMapScene({
         <meshBasicMaterial color="#f5b04a" transparent opacity={0.85} />
       </mesh>
 
+      {/* Sun dropped low + heavy rayleigh = warm sunset gradient.
+          Mie scatter cranked so the sun bloom feels like late
+          afternoon rather than mid-day flat lighting. */}
       <Sky
-        sunPosition={[100, 20, 100]}
-        turbidity={10}
-        rayleigh={0.4}
-        mieCoefficient={0.005}
-        mieDirectionalG={0.8}
+        sunPosition={[100, 8, 60]}
+        turbidity={6}
+        rayleigh={2.4}
+        mieCoefficient={0.012}
+        mieDirectionalG={0.92}
       />
     </>
   );

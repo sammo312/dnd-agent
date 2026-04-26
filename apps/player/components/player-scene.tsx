@@ -68,6 +68,17 @@ export default function PlayerView({
         fov: 50,
       }}
       shadows
+      // Cap dpr at 2 — anything higher costs perf without a visible
+      // gain on retina, and on low-end devices we still get a crisp 1x.
+      dpr={[1, 2]}
+      gl={{
+        antialias: true,
+        // ACES gives the world the cinematic warmth the procedural
+        // flat-shaded props lacked under linear tone mapping.
+        toneMapping: THREE.ACESFilmicToneMapping,
+        toneMappingExposure: 1.05,
+        outputColorSpace: THREE.SRGBColorSpace,
+      }}
       className="w-full h-full"
     >
       <PlayerMapScene

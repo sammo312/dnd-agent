@@ -22,7 +22,7 @@
 
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Billboard, Html } from "@react-three/drei";
+import { Billboard, Html, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 
 import type { ExportedBeat, ExportedMapCell } from "@dnd-agent/shared";
@@ -123,6 +123,22 @@ export function BeatBeacon({ beat, cells, triggered }: BeatBeaconProps) {
             depthWrite={false}
           />
         </mesh>
+      )}
+
+      {/* Embers rising from the beacon — sells the "magical
+          waypoint" feeling without needing real bloom or a
+          postprocessing pipeline. Drei's Sparkles already animates
+          and depth-tests properly. */}
+      {!triggered && (
+        <Sparkles
+          count={28}
+          size={4}
+          speed={0.6}
+          opacity={0.85}
+          color={ACTIVE_COLOR}
+          scale={[beat.radius * 1.5, 6, beat.radius * 1.5]}
+          position={[0, 3, 0]}
+        />
       )}
 
       {/* Vertical column of light. Additive blending reads like
