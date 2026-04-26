@@ -12,6 +12,7 @@ import { NarrativePanel } from "./panels/narrative-panel";
 import { DmTerminalPanel } from "./panels/dm-terminal-panel";
 import { CommandPalette } from "./command-palette";
 import { ExportButton } from "./export-button";
+import { McpConnectButton } from "./mcp-connect-button";
 import { OpenInPlayerButton } from "./open-in-player-button";
 import { NarrativeBridge } from "./narrative-bridge";
 import { StaticTab } from "./static-tab";
@@ -103,6 +104,7 @@ export function WorkbenchLayout() {
        * stacking context dockview creates for its panels. `fixed` (not
        * `absolute`) anchors to the viewport directly. */}
       <div className="fixed right-3 top-1.5 z-[100] flex items-center gap-1.5">
+        <McpConnectButton />
         <OpenInPlayerButton />
         <ExportButton />
       </div>

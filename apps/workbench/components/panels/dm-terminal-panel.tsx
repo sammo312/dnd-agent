@@ -1,9 +1,11 @@
 "use client";
 
 import type { IDockviewPanelProps } from "dockview-react";
+import type { PrepDispatch } from "@dnd-agent/dm-terminal";
 import dynamic from "next/dynamic";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useWorkbenchStore } from "../../lib/workbench-store";
+import { MCP_DISPATCH_KEY } from "../../lib/mcp/window-dispatch";
 import { PanelErrorBoundary } from "./panel-error-boundary";
 
 const TerminalShell = dynamic(
@@ -46,10 +48,28 @@ export const DmTerminalPanel: React.FC<IDockviewPanelProps> = () => {
     [dockviewApi, restorePanel, minimizedPanels],
   );
 
+  // Hold onto the prep dispatcher exposed by TerminalShell and publish
+  // it to a typed `window` key so the MCP bridge hook can drive the
+  // same tool surface from outside the chat. We unregister on unmount
+  // so a closed terminal panel doesn't leave a dangling reference.
+  const handleDispatchReady = useCallback((dispatch: PrepDispatch) => {
+    if (typeof window === "undefined") return;
+    window[MCP_DISPATCH_KEY] = dispatch;
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (typeof window === "undefined") return;
+      delete window[MCP_DISPATCH_KEY];
+    };
+  }, []);
+
   return (
     <div className="h-full w-full bg-background">
       <PanelErrorBoundary panelName="DM Terminal">
-        <TerminalShell onOpenSurface={handleOpenSurface} />
+        <TerminalShell
+          onOpenSurface={handleOpenSurface}
+          onPrepDispatchReady={handleDispatchReady}
+        />
       </PanelErrorBoundary>
     </div>
   );
