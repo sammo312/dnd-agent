@@ -699,6 +699,42 @@ export function TerminalShell({
       }
       const menu = commandMenuRef.current;
 
+      // Menu key interception. When the slash-command menu is visible,
+      // arrow up/down navigate the highlighted row instead of falling
+      // through to history. Enter accepts the selected completion (the
+      // user can press Enter again to submit). Escape dismisses.
+      if (menu.isVisible()) {
+        if (data === "\x1b[A") {
+          menu.moveSelection(-1);
+          return;
+        }
+        if (data === "\x1b[B") {
+          menu.moveSelection(1);
+          return;
+        }
+        if (data === "\r" || data === "\n") {
+          const completion = menu.selectedCompletion();
+          if (completion) {
+            const buffer = inputHandler.getBuffer();
+            // Only accept the selection if it differs from what the user
+            // typed; otherwise fall through and submit the line normally.
+            if (completion.trimEnd() !== buffer) {
+              const extra = completion.slice(buffer.length);
+              for (const ch of extra) {
+                inputHandler.processKey(ch);
+                term.write(ch);
+              }
+              menu.refresh(inputHandler.getBuffer());
+              return;
+            }
+          }
+        }
+        if (data === "\x1b") {
+          menu.erase();
+          return;
+        }
+      }
+
       const event = inputHandler.processKey(data);
       if (!event) return;
 
@@ -715,7 +751,7 @@ export function TerminalShell({
 
         case "submit": {
           // Erase any open menu before the prompt advances.
-          menu.erase(event.line.length);
+          menu.erase();
           term.write("\r\n");
           promptShownRef.current = false;
 
@@ -743,13 +779,13 @@ export function TerminalShell({
         case "history-next":
           // History overwrites the prompt line; close the menu so it doesn't
           // describe a buffer that's no longer there.
-          menu.erase(event.line.length);
+          menu.erase();
           redrawLine(event.line);
           menu.refresh(event.line);
           break;
 
         case "interrupt":
-          menu.erase(0);
+          menu.erase();
           term.write("^C\r\n");
           showPrompt();
           break;
