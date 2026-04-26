@@ -48,10 +48,9 @@ export function PlayerMapScene({
 }: PlayerMapSceneProps) {
   const { map } = project;
   const hasAutoEnteredRef = useRef(false);
-  const [walkTarget, setWalkTarget] = useState<THREE.Vector3 | null>(null);
 
   // Map cells occupy positive world space [0..width] / [0..height].
-  // The engine's MovementHandler / WalkToTarget default to (-10..10),
+  // The engine's MovementHandler default to (-10..10),
   // which silently traps the player in a 10×10 box on any larger map.
   // Use a single bounds box covering both axes (the engine API is
   // single-axis), and pad slightly inside the map so the player body
