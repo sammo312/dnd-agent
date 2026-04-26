@@ -11,6 +11,7 @@
   "dependencies": {
     "@dnd-agent/ui": "workspace:*",
     "@dnd-agent/shared": "workspace:*",
+    "@dnd-agent/map-editor": "workspace:*",
     "zustand": "^5.0.10",
     "immer": "^10.1.1"
   },

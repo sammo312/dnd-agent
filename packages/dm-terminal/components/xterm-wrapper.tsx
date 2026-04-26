@@ -14,14 +14,54 @@ export interface XTermHandle {
   clear(): void;
   focus(): void;
   cols(): number;
+  rows(): number;
 }
 
 interface XTermWrapperProps {
   onData: (data: string) => void;
+  /**
+   * Fires exactly once, after xterm has been dynamically imported,
+   * mounted, and `onData` has been wired. Use this to drive boot writes
+   * (banner, welcome, prompt) instead of a setTimeout — async dynamic
+   * imports can blow past any fixed delay on a cold cache.
+   */
+  onReady?: () => void;
 }
 
+/**
+ * xterm.js theme aligned to DESIGN.md (warm OKLCH palette, CRT phosphor amber).
+ * RGB values mirror the truecolor codes in lib/terminal/ansi.ts so the
+ * default 16-color escapes match the SGR 38;2;R;G;B output exactly.
+ */
+const TERMINAL_THEME = {
+  background: "#1a1612", // --bg-deep   oklch(0.11 0.01 70)
+  foreground: "#e2dac8", // --text-primary
+  cursor: "#e8a843", // --accent-amber (CRT phosphor)
+  cursorAccent: "#1a1612",
+  selectionBackground: "#332e29", // --border
+  selectionForeground: "#e2dac8",
+
+  black: "#0f0c0a",
+  red: "#c14333",
+  green: "#3fb874",
+  yellow: "#e8a843",
+  blue: "#3fb1bd",
+  magenta: "#8a4aaa",
+  cyan: "#3fb1bd",
+  white: "#a89e8c",
+
+  brightBlack: "#54493d", // --text-dim
+  brightRed: "#d6594a",
+  brightGreen: "#5fce8c",
+  brightYellow: "#f4be5c",
+  brightBlue: "#5fc8d2",
+  brightMagenta: "#a163c2",
+  brightCyan: "#5fc8d2",
+  brightWhite: "#e2dac8",
+} as const;
+
 export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
-  function XTermWrapper({ onData }, ref) {
+  function XTermWrapper({ onData, onReady }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const terminalRef = useRef<any>(null);
     const fitAddonRef = useRef<any>(null);
@@ -41,6 +81,9 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
       },
       cols() {
         return terminalRef.current?.cols ?? 80;
+      },
+      rows() {
+        return terminalRef.current?.rows ?? 24;
       },
     }));
 
@@ -67,35 +110,20 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
         if (disposed) return;
 
         terminal = new Terminal({
-          fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", "Menlo", monospace',
-          fontSize: 14,
-          lineHeight: 1.4,
+          fontFamily:
+            '"JetBrains Mono", "Fira Code", "Cascadia Code", "Menlo", monospace',
+          fontSize: 13,
+          fontWeight: "400",
+          fontWeightBold: "700",
+          letterSpacing: 0.2,
+          lineHeight: 1.5,
           cursorBlink: true,
           cursorStyle: "block",
+          cursorWidth: 2,
           scrollback: 5000,
-          theme: {
-            background: "#0a0e14",
-            foreground: "#b3b1ad",
-            cursor: "#e6b450",
-            cursorAccent: "#0a0e14",
-            selectionBackground: "#1a1f29",
-            black: "#01060e",
-            red: "#ea6c73",
-            green: "#91b362",
-            yellow: "#f9af4f",
-            blue: "#53bdfa",
-            magenta: "#c678dd",
-            cyan: "#90e1c6",
-            white: "#c7c7c7",
-            brightBlack: "#686868",
-            brightRed: "#f07178",
-            brightGreen: "#c2d94c",
-            brightYellow: "#ffb454",
-            brightBlue: "#59c2ff",
-            brightMagenta: "#d176e2",
-            brightCyan: "#95e6cb",
-            brightWhite: "#ffffff",
-          },
+          allowProposedApi: true,
+          macOptionIsMeta: true,
+          theme: TERMINAL_THEME,
         });
 
         fitAddon = new FitAddon();
@@ -106,7 +134,7 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
           const webglAddon = new WebglAddon();
           terminal.loadAddon(webglAddon);
         } catch {
-          // WebGL not supported, canvas fallback is fine
+          // WebGL not supported — canvas fallback is fine.
         }
 
         terminal.open(containerRef.current!);
@@ -119,6 +147,11 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
 
         window.addEventListener("resize", handleResize);
         terminal.focus();
+
+        // Notify the shell that xterm is mounted and writable. This must
+        // run *after* `terminalRef.current = terminal` so the imperative
+        // handle's write/clear/focus are no longer no-ops.
+        onReady?.();
       }
 
       init();
@@ -133,7 +166,14 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
     return (
       <div
         ref={containerRef}
-        style={{ width: "100%", height: "100%", padding: "8px" }}
+        // Background matches xterm theme so there's no visible seam at the
+        // canvas edge. Padding follows the comfortable terminal density.
+        style={{
+          width: "100%",
+          height: "100%",
+          padding: "12px 16px",
+          background: "#1a1612",
+        }}
       />
     );
   }

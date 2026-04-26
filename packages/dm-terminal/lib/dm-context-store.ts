@@ -22,16 +22,28 @@ interface DmContextStore {
   scene: SceneContext | null;
   characters: Character[];
 
+  /**
+   * When true, the prep agent should drive the build without asking
+   * follow-up questions — fill in any gaps with confident defaults.
+   * Toggled by the user via the `/auto` command.
+   */
+  autoMode: boolean;
+
   setScene: (scene: SceneContext) => void;
   addCharacter: (c: Character) => void;
   updateCharacter: (id: string, updates: Partial<Character>) => void;
   removeCharacter: (id: string) => void;
+
+  setAutoMode: (enabled: boolean) => void;
+  toggleAutoMode: () => boolean;
+
   reset: () => void;
 }
 
-export const useDmContextStore = create<DmContextStore>((set) => ({
+export const useDmContextStore = create<DmContextStore>((set, get) => ({
   scene: null,
   characters: [],
+  autoMode: false,
 
   setScene: (scene) => set({ scene }),
 
@@ -48,5 +60,12 @@ export const useDmContextStore = create<DmContextStore>((set) => ({
   removeCharacter: (id) =>
     set((s) => ({ characters: s.characters.filter((c) => c.id !== id) })),
 
-  reset: () => set({ scene: null, characters: [] }),
+  setAutoMode: (enabled) => set({ autoMode: enabled }),
+  toggleAutoMode: () => {
+    const next = !get().autoMode;
+    set({ autoMode: next });
+    return next;
+  },
+
+  reset: () => set({ scene: null, characters: [], autoMode: false }),
 }));

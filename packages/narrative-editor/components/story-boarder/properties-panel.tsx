@@ -1,12 +1,13 @@
 "use client";
 
 import { useStoryStore } from "../../lib/story-store";
+import { useMapStore } from "@dnd-agent/map-editor/lib/map-store";
 import { Input } from "@dnd-agent/ui/components/input";
 import { Label } from "@dnd-agent/ui/components/label";
 import { Button } from "@dnd-agent/ui/components/button";
 import { Separator } from "@dnd-agent/ui/components/separator";
 import { ScrollArea } from "@dnd-agent/ui/components/scroll-area";
-import { Plus, Trash2, Layers, MessageSquare, X } from "lucide-react";
+import { Plus, Trash2, Layers, MessageSquare, X, MapPin } from "lucide-react";
 import type { DialogueNode, Section } from "../../lib/story-types";
 import { DialogueSegmentEditor } from "./dialogue-segment-editor";
 
@@ -20,6 +21,7 @@ export function PropertiesPanel() {
     updateChoice,
     deleteChoice,
   } = useStoryStore();
+  const mapBeats = useMapStore((s) => s.snapshot.beats);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
@@ -29,6 +31,13 @@ export function PropertiesPanel() {
 
   const isSection = selectedNode.type === "section";
   const data = selectedNode.data;
+
+  // Cross-reference into the map: where is this section/dialogue placed?
+  const placedBeats = isSection
+    ? mapBeats.filter(
+        (b) => b.sectionName === (data as Section).name && !b.nodeId,
+      )
+    : mapBeats.filter((b) => b.nodeId === (data as DialogueNode).id);
 
   return (
     <ScrollArea className="h-full">
@@ -56,6 +65,29 @@ export function PropertiesPanel() {
         </div>
 
         <Separator />
+
+        {/* Map placement cross-reference */}
+        {placedBeats.length > 0 && (
+          <div className="rounded-md border border-border bg-muted/40 px-3 py-2 space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <MapPin className="w-3 h-3" />
+              On the map
+            </div>
+            <ul className="space-y-0.5">
+              {placedBeats.map((b) => (
+                <li
+                  key={b.id}
+                  className="flex items-center justify-between text-xs"
+                >
+                  <span className="font-medium truncate">{b.name}</span>
+                  <span className="font-mono text-[11px] text-muted-foreground shrink-0 ml-2">
+                    ({b.x}, {b.y}){b.radius > 0 ? ` r${b.radius}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Section (Chapter) Properties */}
         {isSection && (

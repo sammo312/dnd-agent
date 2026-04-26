@@ -2,18 +2,12 @@
   "name": "dnd-agent",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "turbo:dev": "turbo dev",
-    "turbo:build": "turbo build",
-    "turbo:lint": "turbo lint",
+    "dev": "turbo dev --filter=@dnd-agent/workbench",
+    "build": "turbo build",
+    "lint": "turbo lint",
     "clean": "turbo clean",
     "dev:workbench": "turbo dev --filter=@dnd-agent/workbench",
-    "dev:player": "turbo dev --filter=@dnd-agent/player",
-    "dev:sync": "turbo dev --filter=@dnd-agent/sync-server",
-    "dev:demo": "turbo dev --filter=@dnd-agent/sync-server --filter=@dnd-agent/player"
+    "dev:player": "turbo dev --filter=@dnd-agent/player"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.0.0",

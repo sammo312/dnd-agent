@@ -48,6 +48,8 @@ interface EditorState {
   pois: PlacedPOI[]
   regions: NamedRegion[]
   narrativeBeats: PlacedNarrativeBeat[]
+  /** Tile the player loads into when entering the map. */
+  spawn?: { x: number; y: number }
 }
 
 function createEmptyMap(width: number, height: number): MapCell[][] {
@@ -84,8 +86,6 @@ export function MapEditor() {
   const [showElevation, setShowElevation] = useState(false)
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null)
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d")
-
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Responsive container sizing
   const containerRef = useRef<HTMLDivElement>(null)
@@ -131,8 +131,8 @@ export function MapEditor() {
 
   const { cells, pois, regions, narrativeBeats } = editorState
 
-  // Narrative schema state (not part of history)
-  const [narrativeSchema, setNarrativeSchema] = useState<NarrativeSchema | null>(null)
+  // Narrative schema is fed live by the story boarder via useMapStore.
+  const narrativeSchema = useMapStore((s) => s.narrativeSchema) as NarrativeSchema | null
   const [selectedNarrativeBeat, setSelectedNarrativeBeat] = useState<PlacedNarrativeBeat | null>(null)
 
   // Hotkey configuration
@@ -152,8 +152,6 @@ export function MapEditor() {
     { key: "=", ctrl: true, action: () => setZoom((z) => Math.min(3, z + 0.1)), description: "Zoom in" },
     { key: "-", ctrl: true, action: () => setZoom((z) => Math.max(0.25, z - 0.1)), description: "Zoom out" },
     { key: "0", ctrl: true, action: () => setZoom(1), description: "Reset zoom" },
-    { key: "s", ctrl: true, action: handleExport, description: "Export" },
-    { key: "o", ctrl: true, action: () => fileInputRef.current?.click(), description: "Import" },
     {
       key: "Delete",
       action: () => {
@@ -442,10 +440,6 @@ export function MapEditor() {
     }
   }
 
-  const handleImportNarrative = (schema: NarrativeSchema) => {
-    setNarrativeSchema(schema)
-  }
-
   // Association handlers
   const handleUpdatePOIAssociations = (poiId: string, associations: NarrativeAssociation[]) => {
     setEditorState((prev) => ({
@@ -521,47 +515,6 @@ export function MapEditor() {
     setSelectedNarrativeBeat(null)
   }
 
-  function handleExport() {
-    const mapData = {
-      width: mapWidth,
-      height: mapHeight,
-      ...editorState,
-    }
-    const blob = new Blob([JSON.stringify(mapData, null, 2)], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "map-export.json"
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string)
-        if (data.width && data.height && data.cells) {
-          setMapWidth(data.width)
-          setMapHeight(data.height)
-          resetHistory({
-            cells: data.cells,
-            pois: data.pois || [],
-            regions: data.regions || [],
-            narrativeBeats: data.narrativeBeats || [],
-          })
-        }
-      } catch (err) {
-        console.error("Failed to import map:", err)
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ""
-  }
-
   // ─────────────────────────────────────────────
   // DM prep agent integration: consume pending mutations
   // and publish a snapshot of the current map for the agent.
@@ -569,6 +522,7 @@ export function MapEditor() {
   const pendingMutations = useMapStore((s) => s.pendingMutations)
   const consumeMutations = useMapStore((s) => s.consumeMutations)
   const publishSnapshot = useMapStore((s) => s.publishSnapshot)
+  const publishExportSnapshot = useMapStore((s) => s.publishExportSnapshot)
 
   useEffect(() => {
     if (pendingMutations.length === 0) return
@@ -626,6 +580,33 @@ export function MapEditor() {
           }
           return { ...prev, pois: [...prev.pois, newPOI] }
         })
+      } else if (m.type === "set_spawn") {
+        setEditorState((prev) => {
+          const w = prev.cells[0]?.length ?? 0
+          const h = prev.cells.length
+          const x = Math.max(0, Math.min(m.x, w - 1))
+          const y = Math.max(0, Math.min(m.y, h - 1))
+          return { ...prev, spawn: { x, y } }
+        })
+      } else if (m.type === "place_beat") {
+        setEditorState((prev) => {
+          const w = prev.cells[0]?.length ?? 0
+          const h = prev.cells.length
+          const x = Math.max(0, Math.min(m.x, w - 1))
+          const y = Math.max(0, Math.min(m.y, h - 1))
+          const newBeat: PlacedNarrativeBeat = {
+            id: `beat-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+            sectionId: m.sectionName,
+            nodeId: m.nodeId,
+            name: m.name,
+            x,
+            y,
+            type: m.nodeId ? "node" : "section",
+            radius: typeof m.radius === "number" ? Math.max(0, m.radius) : 1,
+            oneShot: m.oneShot ?? true,
+          }
+          return { ...prev, narrativeBeats: [...prev.narrativeBeats, newBeat] }
+        })
       } else if (m.type === "clear") {
         resetHistory(createInitialState(mapWidth, mapHeight))
       }
@@ -642,22 +623,66 @@ export function MapEditor() {
       height: mapHeight,
       poiCount: pois.length,
       poiSummary: pois.map((p) => ({ type: p.type, name: p.name, x: p.x, y: p.y })),
+      spawn: editorState.spawn,
+      beats: narrativeBeats.map((b) => ({
+        id: b.id,
+        sectionName: b.sectionId,
+        nodeId: b.nodeId,
+        name: b.name,
+        x: b.x,
+        y: b.y,
+        radius: typeof b.radius === "number" ? b.radius : 1,
+        oneShot: b.oneShot ?? true,
+      })),
     })
-  }, [mapWidth, mapHeight, pois, publishSnapshot])
+  }, [mapWidth, mapHeight, pois, narrativeBeats, editorState.spawn, publishSnapshot])
+
+  useEffect(() => {
+    publishExportSnapshot({
+      width: mapWidth,
+      height: mapHeight,
+      cells: cells.map((row) =>
+        row.map((cell) => ({
+          terrain: cell.terrain,
+          elevation: cell.elevation,
+          elevationOffset: cell.elevationOffset,
+          regionId: cell.regionId,
+        })),
+      ),
+      pois: pois.map((p) => ({
+        id: p.id,
+        type: p.type,
+        name: p.name,
+        icon: p.icon,
+        x: p.x,
+        y: p.y,
+        size: p.size,
+        gltfUrl: p.gltfUrl,
+      })),
+      regions: regions.map((r) => ({
+        id: r.id,
+        name: r.name,
+        color: r.color,
+        pixels: r.pixels,
+      })),
+      spawn: editorState.spawn,
+      beats: narrativeBeats.map((b) => ({
+        id: b.id,
+        sectionId: b.sectionId,
+        nodeId: b.nodeId,
+        name: b.name,
+        x: b.x,
+        y: b.y,
+        radius: b.radius,
+        oneShot: b.oneShot,
+      })),
+    })
+  }, [mapWidth, mapHeight, cells, pois, regions, narrativeBeats, editorState.spawn, publishExportSnapshot])
 
   const selectedRegionData = selectedRegion ? regions.find((r) => r.id === selectedRegion) || null : null
 
   return (
     <div ref={containerRef} className="h-full flex flex-col bg-background">
-      {/* Hidden file input for import */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json"
-        onChange={handleImport}
-        className="hidden"
-      />
-
       {/* View Mode Toggle */}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50">
         <div className="flex items-center bg-background/95 backdrop-blur-sm rounded-full border shadow-lg p-1">
@@ -704,8 +729,6 @@ export function MapEditor() {
         onToggleAssociations={() => setShowAssociations((s) => !s)}
         showElevation={showElevation}
         onToggleElevation={() => setShowElevation((s) => !s)}
-        onExport={handleExport}
-        onImport={() => fileInputRef.current?.click()}
         onClear={handleClear}
         historyLength={historyLength}
         futureLength={futureLength}
@@ -734,7 +757,6 @@ export function MapEditor() {
           brushSize={brushSize}
           onBrushSizeChange={setBrushSize}
           narrativeSchema={narrativeSchema}
-          onImportNarrative={handleImportNarrative}
           placedBeats={narrativeBeats}
           selectedBeat={selectedNarrativeBeat}
           onSelectBeat={handleNarrativeBeatSelect}

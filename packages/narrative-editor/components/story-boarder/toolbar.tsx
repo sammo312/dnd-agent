@@ -4,26 +4,14 @@ import { useState } from "react";
 import { useStoryStore } from "../../lib/story-store";
 import { Button } from "@dnd-agent/ui/components/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@dnd-agent/ui/components/dialog";
-import { Textarea } from "@dnd-agent/ui/components/textarea";
-import {
   Layers,
   MessageSquare,
-  Download,
-  Upload,
   ZoomIn,
   ZoomOut,
   Home,
   Presentation,
 } from "lucide-react";
-import type { StoryNode, Section, DialogueNode, ExportedChapter } from "../../lib/story-types";
-import { ExportPanel } from "./export-panel";
+import type { StoryNode, Section, DialogueNode } from "../../lib/story-types";
 import { PresentationMode } from "./presentation-mode";
 
 interface ToolbarProps {
@@ -35,14 +23,10 @@ export function Toolbar({ compact = false }: ToolbarProps) {
     addNode,
     nodes,
     exportToJson,
-    importFromJson,
     zoom,
     setZoom,
     setCanvasOffset,
   } = useStoryStore();
-  const [importOpen, setImportOpen] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [importData, setImportData] = useState("");
   const [presentationOpen, setPresentationOpen] = useState(false);
 
   const handleAddSection = () => {
@@ -82,42 +66,6 @@ export function Toolbar({ compact = false }: ToolbarProps) {
       } as DialogueNode,
     };
     addNode(newNode);
-  };
-
-  const handleExport = () => {
-    const exportData = exportToJson();
-    return JSON.stringify(exportData, null, 2);
-  };
-
-  const handleImport = () => {
-    try {
-      const data = JSON.parse(importData) as ExportedChapter[];
-      if (Array.isArray(data) && data.length > 0) {
-        // Check if it looks like the new chapter format: [{ "chapterName": { nodes: [...] } }]
-        const firstKey = Object.keys(data[0])[0];
-        const firstChapter = data[0][firstKey];
-        if (firstKey && firstChapter && Array.isArray(firstChapter.nodes)) {
-          importFromJson(data);
-          setImportOpen(false);
-          setImportData("");
-          return;
-        }
-      }
-      alert('Invalid format. Expected [{ "chapterName": { nodes: [...] } }]');
-    } catch {
-      alert("Invalid JSON");
-    }
-  };
-
-  const handleDownload = () => {
-    const json = handleExport();
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "story-data.json";
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const handleResetView = () => {
@@ -188,48 +136,6 @@ export function Toolbar({ compact = false }: ToolbarProps) {
           <Presentation className="w-4 h-4 text-primary" />
           {!compact && <span className="hidden sm:inline">Present</span>}
         </Button>
-      </div>
-
-      {/* Import/Export */}
-      <div className="flex items-center gap-1 ml-auto">
-        <Dialog open={importOpen} onOpenChange={setImportOpen}>
-          <DialogTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2">
-              <Upload className="w-4 h-4" />
-              {!compact && <span className="hidden sm:inline">Import</span>}
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-            <DialogHeader className="flex-shrink-0">
-              <DialogTitle>Import Story Data</DialogTitle>
-              <DialogDescription>
-                Paste your story JSON data below (format: [{'{ "chapterName": { nodes: [...] } }'}])
-              </DialogDescription>
-            </DialogHeader>
-            <Textarea
-              value={importData}
-              onChange={(e) => setImportData(e.target.value)}
-              placeholder='[{ "Chapter 1": { "nodes": [{ "id": "...", "speaker": "...", "dialogue": [...] }] } }]'
-              className="flex-1 min-h-[200px] max-h-[400px] font-mono text-xs resize-none"
-            />
-            <div className="flex justify-end gap-2 flex-shrink-0 pt-2">
-              <Button variant="outline" onClick={() => setImportOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleImport}>Import</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Button variant="ghost" size="sm" className="gap-2" onClick={() => setExportOpen(true)}>
-          <Download className="w-4 h-4" />
-          {!compact && <span className="hidden sm:inline">Export</span>}
-        </Button>
-        <ExportPanel
-          open={exportOpen}
-          onOpenChange={setExportOpen}
-          data={exportToJson()}
-        />
       </div>
 
       {/* Presentation Mode */}

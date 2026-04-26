@@ -13,7 +13,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@dnd-agent/ui/components/dropdown-menu"
@@ -27,8 +26,6 @@ import {
   Redo2,
   ZoomIn,
   ZoomOut,
-  Download,
-  Upload,
   Trash2,
   Menu,
   Grid3X3,
@@ -62,8 +59,6 @@ interface EditorToolbarProps {
   onToggleAssociations: () => void
   showElevation: boolean
   onToggleElevation: () => void
-  onExport: () => void
-  onImport: () => void
   onClear: () => void
   historyLength: number
   futureLength: number
@@ -97,8 +92,6 @@ export function EditorToolbar({
   onToggleAssociations,
   showElevation,
   onToggleElevation,
-  onExport,
-  onImport,
   onClear,
   historyLength,
   futureLength,
@@ -116,17 +109,6 @@ export function EditorToolbar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={onImport}>
-              <Upload className="h-4 w-4 mr-2" />
-              Import JSON
-              <span className="ml-auto text-xs text-muted-foreground">Ctrl+O</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExport}>
-              <Download className="h-4 w-4 mr-2" />
-              Export JSON
-              <span className="ml-auto text-xs text-muted-foreground">Ctrl+S</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onClear} className="text-destructive">
               <Trash2 className="h-4 w-4 mr-2" />
               Clear All

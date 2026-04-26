@@ -8,6 +8,8 @@ import {
   setMapDimensionsTool,
   paintTerrainTool,
   addPOITool,
+  askQuestionTool,
+  linkToSurfaceTool,
   type DmPrepToolName,
 } from "./prep-tools";
 
@@ -34,6 +36,8 @@ export const PREP_TOOL_NAMES: DmPrepToolName[] = [
   "setMapDimensions",
   "paintTerrain",
   "addPOI",
+  "askQuestion",
+  "linkToSurface",
 ];
 
 export {
@@ -44,6 +48,8 @@ export {
   setMapDimensionsTool,
   paintTerrainTool,
   addPOITool,
+  askQuestionTool,
+  linkToSurfaceTool,
   diceTool,
 };
 

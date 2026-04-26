@@ -36,6 +36,8 @@ export interface MapData {
   pois: PlacedPOI[]
   regions: NamedRegion[]
   narrativeBeats: PlacedNarrativeBeat[]
+  /** Tile the player loads into when entering the map. */
+  spawn?: { x: number; y: number }
 }
 
 // Narrative Schema Types
@@ -78,6 +80,10 @@ export interface PlacedNarrativeBeat {
   y: number
   type: 'section' | 'node'
   associatedPOIs?: string[] // POI ids associated with this beat
+  /** Trigger radius in tiles. Defaults to 1 if omitted. */
+  radius?: number
+  /** If true, the beat fires only the first time the player enters its range. Defaults to true. */
+  oneShot?: boolean
 }
 
 // Terrain-related types (standalone, without const array dependencies)
