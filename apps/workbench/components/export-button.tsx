@@ -76,7 +76,10 @@ export function ExportButton() {
         ) : (
           <Download className="h-3.5 w-3.5" aria-hidden />
         )}
-        <span>Export</span>
+        {/* Drop the label below the sm breakpoint so the button fits
+         * the mobile header without crowding "Open in player". The
+         * aria-label on the button keeps the action discoverable. */}
+        <span className="hidden sm:inline">Export</span>
       </button>
       <ExportSuccessDialog
         open={successOpen}
