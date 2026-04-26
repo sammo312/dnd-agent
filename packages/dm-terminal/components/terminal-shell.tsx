@@ -884,22 +884,5 @@ export function TerminalShell({
     return () => clearTimeout(timer);
   }, [showPrompt, config]);
 
-  // Send a synthetic kickoff message so the agent introduces itself
-  // and starts the interview when the workspace is empty.
-  const kickoffSent = useRef(false);
-  useEffect(() => {
-    if (kickoffSent.current) return;
-    if (messages.length > 0) {
-      kickoffSent.current = true;
-      return;
-    }
-    const t = setTimeout(() => {
-      if (kickoffSent.current) return;
-      kickoffSent.current = true;
-      sendToAI("Hello — I'm ready to start prepping a scene.");
-    }, 500);
-    return () => clearTimeout(t);
-  }, [messages.length, sendToAI]);
-
   return <XTermWrapper ref={termRef} onData={handleData} />;
 }
