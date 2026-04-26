@@ -91,10 +91,20 @@ export function MapCanvas({
   const canvasRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Handle space key for temporary pan mode
+  // Handle space key for temporary pan mode.
+  // Bail when focus is in any text-input surface — including xterm's
+  // hidden <textarea class="xterm-helper-textarea">, which the previous
+  // INPUT-only check missed and caused the map to swallow spaces typed
+  // into the DM terminal.
   useEffect(() => {
+    const isTypingTarget = () => {
+      const el = document.activeElement as HTMLElement | null
+      if (!el) return false
+      const tag = el.tagName
+      return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable
+    }
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space" && !e.repeat && document.activeElement?.tagName !== "INPUT") {
+      if (e.code === "Space" && !e.repeat && !isTypingTarget()) {
         e.preventDefault()
         setIsSpacePanning(true)
       }
