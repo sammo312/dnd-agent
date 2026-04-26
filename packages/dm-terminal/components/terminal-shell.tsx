@@ -37,6 +37,20 @@ import {
   type ThinkingIndicator,
 } from "../lib/terminal/thinking-indicator";
 
+/**
+ * Tools whose `execute` runs on the API route, not in the client. The
+ * AI SDK still fires useChat's `onToolCall` for these (it doesn't know
+ * the difference), so we short-circuit them in the client dispatcher
+ * to avoid the "Unknown tool" path racing the real server result.
+ *
+ * Keep this in sync with `dmTools` (any tool defined with an `execute`
+ * function in lib/ai/tools/).
+ */
+const SERVER_SIDE_TOOL_NAMES = new Set<string>([
+  "rollDice",
+  "planNarrative",
+]);
+
 export interface TerminalConfig {
   /** API endpoint for chat. Default: "/api/chat" */
   apiEndpoint?: string;
@@ -222,6 +236,18 @@ export function TerminalShell({
       toolName: string,
       args: Record<string, unknown>,
     ): Promise<unknown> => {
+      // Server-side tools (rollDice, planNarrative) run on the API
+      // route via their `execute` functions. The AI SDK still invokes
+      // useChat's `onToolCall` for them on the client, but we have no
+      // business handling them here — returning undefined lets the
+      // server's streamed result win the race instead of our default
+      // branch returning a bogus "Unknown tool" error that the model
+      // then sees as the tool result. (This is the source of the
+      // "Error: Unknown tool: planNarrative" line in the transcript.)
+      if (SERVER_SIDE_TOOL_NAMES.has(toolName)) {
+        return undefined;
+      }
+
       const story = useStoryStore.getState();
       const dm = useDmContextStore.getState();
       const mapStore = useMapStore.getState();
