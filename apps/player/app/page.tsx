@@ -29,6 +29,13 @@ const PlayerCliDrawer = dynamic(
   { ssr: false }
 );
 
+// Visual character sheet + inventory drawer. Lives on the LEFT side
+// of the screen so it doesn't fight the CLI button on the right.
+const CharacterSheetDrawer = dynamic(
+  () => import("@/components/character-sheet-drawer"),
+  { ssr: false }
+);
+
 // Three high-level UI states the player can be in. The home page is a
 // router between them, driven by `useProjectStore` + a local "have we
 // dismissed the post-load summary?" flag.
@@ -182,8 +189,11 @@ function SceneStage() {
           overlay UI. */}
       <PlayerHud active={isFirstPerson} isTouch={isTouch} />
 
-      {/* Player CLI drawer */}
+      {/* Player CLI drawer (right-side, AI chat). */}
       <PlayerCliDrawer />
+
+      {/* Visual character sheet + inventory (left-side). */}
+      <CharacterSheetDrawer />
 
       {/* Story beats fire here. The overlay positions itself fixed on
           top of the scene; the proximity watcher inside the Canvas

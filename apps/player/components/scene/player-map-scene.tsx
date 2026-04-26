@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { ContactShadows, Sky, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 import {
   MovementHandler,
   TerrainGrid,
   TerrainMesh,
-  WalkToTarget,
   type FirstPersonState,
 } from "@dnd-agent/three-engine";
 import type { ExportedProject } from "@dnd-agent/shared";
@@ -17,7 +16,6 @@ import { PlayerScrollCamera } from "./player-scroll-camera";
 import { BeatProximityWatcher } from "./beat-proximity-watcher";
 import { BeatBeacon } from "./beat-beacon";
 import { WorldProp } from "./world-prop";
-import { MapClickableGround } from "./map-clickable-ground";
 import { TouchMovementHandler } from "./touch-movement-handler";
 import { GroundDetail } from "./ground-detail";
 import { playerPositionRef } from "@/lib/three/player-position-ref";
@@ -38,7 +36,8 @@ interface PlayerMapSceneProps {
  *   - narrative beat markers, mapped from the wire-format
  *     `ExportedBeat` shape onto three-engine's `PlacedNarrativeBeat`
  *   - scroll-driven camera that ends in an FPS dive at `map.spawn`
- *   - WASD/arrow movement + click-to-walk once FPS is active
+ *   - WASD/arrow movement (desktop) + virtual joystick (touch)
+ *     once FPS is active
  */
 export function PlayerMapScene({
   project,
@@ -131,21 +130,6 @@ export function PlayerMapScene({
     [setFirstPerson]
   );
 
-  const handleClickToWalk = useCallback(
-    (pos: THREE.Vector3) => {
-      if (firstPerson.active) {
-        setWalkTarget(
-          new THREE.Vector3(pos.x, firstPerson.position.y, pos.z)
-        );
-      }
-    },
-    [firstPerson]
-  );
-
-  const handleReachTarget = useCallback(() => {
-    setWalkTarget(null);
-  }, []);
-
   const hasCells = map.cells.length > 0 && map.cells[0]?.length > 0;
 
   return (
@@ -184,23 +168,11 @@ export function PlayerMapScene({
         </>
       )}
 
-      <WalkToTarget
-        active={walkTarget !== null && !dialogueActive}
-        targetPosition={walkTarget}
-        currentPosition={firstPerson.position}
-        rotation={firstPerson.rotation}
-        onMove={handleMove}
-        onRotate={handleRotate}
-        onReachTarget={handleReachTarget}
-        bounds={movementBounds}
-      />
-
-      <MapClickableGround
-        width={map.width}
-        height={map.height}
-        visible={firstPerson.active && !dialogueActive}
-        onClickPosition={handleClickToWalk}
-      />
+      {/* Click-to-walk was a 3rd-person/isometric (RuneScape-style)
+          affordance and felt awkward inside an FPS camera, so it's
+          gone — movement is WASD on desktop and the touch joystick
+          on mobile, both of which read as "you are this character"
+          rather than "you are moving a piece on a board". */}
 
       {firstPerson.active && (
         <BeatProximityWatcher
