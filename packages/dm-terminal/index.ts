@@ -14,7 +14,27 @@ export {
   routeCommand,
   type CommandResult,
   type CommandContext,
+  type ExportSummary,
 } from "./lib/game/command-router";
+export {
+  buildProject,
+  downloadProject,
+  PROJECT_EXPORT_VERSION,
+  type ExportedProject,
+  type ExportedSection,
+  type ExportedDialogueNode,
+  type ExportedChoice,
+  type ExportedDialogueSegment,
+  type ExportedBeat,
+  type ExportedCharacter,
+  type ExportedMap,
+  type ExportedMapCell,
+  type ExportedPOI,
+  type ExportedRegion,
+  type ExportedScene,
+  type ExportResult,
+  type ValidationIssue,
+} from "./lib/export/project-export";
 export { localRoll } from "./lib/game/state";
 export {
   useDmContextStore,

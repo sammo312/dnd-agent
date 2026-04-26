@@ -48,6 +48,8 @@ interface EditorState {
   pois: PlacedPOI[]
   regions: NamedRegion[]
   narrativeBeats: PlacedNarrativeBeat[]
+  /** Tile the player loads into when entering the map. */
+  spawn?: { x: number; y: number }
 }
 
 function createEmptyMap(width: number, height: number): MapCell[][] {
@@ -569,6 +571,7 @@ export function MapEditor() {
   const pendingMutations = useMapStore((s) => s.pendingMutations)
   const consumeMutations = useMapStore((s) => s.consumeMutations)
   const publishSnapshot = useMapStore((s) => s.publishSnapshot)
+  const publishExportSnapshot = useMapStore((s) => s.publishExportSnapshot)
 
   useEffect(() => {
     if (pendingMutations.length === 0) return
@@ -626,6 +629,33 @@ export function MapEditor() {
           }
           return { ...prev, pois: [...prev.pois, newPOI] }
         })
+      } else if (m.type === "set_spawn") {
+        setEditorState((prev) => {
+          const w = prev.cells[0]?.length ?? 0
+          const h = prev.cells.length
+          const x = Math.max(0, Math.min(m.x, w - 1))
+          const y = Math.max(0, Math.min(m.y, h - 1))
+          return { ...prev, spawn: { x, y } }
+        })
+      } else if (m.type === "place_beat") {
+        setEditorState((prev) => {
+          const w = prev.cells[0]?.length ?? 0
+          const h = prev.cells.length
+          const x = Math.max(0, Math.min(m.x, w - 1))
+          const y = Math.max(0, Math.min(m.y, h - 1))
+          const newBeat: PlacedNarrativeBeat = {
+            id: `beat-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+            sectionId: m.sectionName,
+            nodeId: m.nodeId,
+            name: m.name,
+            x,
+            y,
+            type: m.nodeId ? "node" : "section",
+            radius: typeof m.radius === "number" ? Math.max(0, m.radius) : 1,
+            oneShot: m.oneShot ?? true,
+          }
+          return { ...prev, narrativeBeats: [...prev.narrativeBeats, newBeat] }
+        })
       } else if (m.type === "clear") {
         resetHistory(createInitialState(mapWidth, mapHeight))
       }
@@ -642,8 +672,61 @@ export function MapEditor() {
       height: mapHeight,
       poiCount: pois.length,
       poiSummary: pois.map((p) => ({ type: p.type, name: p.name, x: p.x, y: p.y })),
+      spawn: editorState.spawn,
+      beats: narrativeBeats.map((b) => ({
+        id: b.id,
+        sectionName: b.sectionId,
+        nodeId: b.nodeId,
+        name: b.name,
+        x: b.x,
+        y: b.y,
+        radius: typeof b.radius === "number" ? b.radius : 1,
+        oneShot: b.oneShot ?? true,
+      })),
     })
-  }, [mapWidth, mapHeight, pois, publishSnapshot])
+  }, [mapWidth, mapHeight, pois, narrativeBeats, editorState.spawn, publishSnapshot])
+
+  useEffect(() => {
+    publishExportSnapshot({
+      width: mapWidth,
+      height: mapHeight,
+      cells: cells.map((row) =>
+        row.map((cell) => ({
+          terrain: cell.terrain,
+          elevation: cell.elevation,
+          elevationOffset: cell.elevationOffset,
+          regionId: cell.regionId,
+        })),
+      ),
+      pois: pois.map((p) => ({
+        id: p.id,
+        type: p.type,
+        name: p.name,
+        icon: p.icon,
+        x: p.x,
+        y: p.y,
+        size: p.size,
+        gltfUrl: p.gltfUrl,
+      })),
+      regions: regions.map((r) => ({
+        id: r.id,
+        name: r.name,
+        color: r.color,
+        pixels: r.pixels,
+      })),
+      spawn: editorState.spawn,
+      beats: narrativeBeats.map((b) => ({
+        id: b.id,
+        sectionId: b.sectionId,
+        nodeId: b.nodeId,
+        name: b.name,
+        x: b.x,
+        y: b.y,
+        radius: b.radius,
+        oneShot: b.oneShot,
+      })),
+    })
+  }, [mapWidth, mapHeight, cells, pois, regions, narrativeBeats, editorState.spawn, publishExportSnapshot])
 
   const selectedRegionData = selectedRegion ? regions.find((r) => r.id === selectedRegion) || null : null
 

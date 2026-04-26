@@ -15,8 +15,10 @@ import { InputHandler } from "../lib/terminal/input-handler";
 import {
   routeCommand as defaultRouteCommand,
   type CommandContext,
+  type ExportSummary,
 } from "../lib/game/command-router";
 import type { CommandResult } from "../lib/game/command-router";
+import { buildProject, downloadProject } from "../lib/export/project-export";
 import { BANNER } from "../lib/terminal/ascii-art";
 import {
   formatNarration,
@@ -87,9 +89,12 @@ function buildWorkspaceSnapshot() {
     return {
       name: sectionData.name,
       title: sectionData.title,
+      kind: sectionData.kind ?? "beat",
       nodeIds: reachable,
     };
   });
+
+  const hasPreface = chapters.some((c) => c.kind === "preface");
 
   return {
     scene: dm.scene,
@@ -100,6 +105,7 @@ function buildWorkspaceSnapshot() {
     })),
     story: {
       chapters,
+      hasPreface,
       totalDialogueNodes: dialogueStoreNodes.length,
     },
     map: mapSnap,
@@ -114,8 +120,10 @@ function describeToolCall(toolName: string, args: Record<string, unknown>): stri
       return `scene · ${args.title}`;
     case "addCharacter":
       return `character · ${args.name} (${args.role})`;
-    case "createChapter":
-      return `chapter · ${args.name}`;
+    case "createChapter": {
+      const k = args.kind ? ` (${args.kind})` : "";
+      return `section · ${args.name}${k}`;
+    }
     case "addDialogueNode":
       return `node · ${args.chapterName}/${args.nodeId}`;
     case "setMapDimensions":
@@ -124,6 +132,10 @@ function describeToolCall(toolName: string, args: Record<string, unknown>): stri
       return `paint · ${args.terrain} (${args.x1},${args.y1})→(${args.x2},${args.y2})`;
     case "addPOI":
       return `poi · ${args.name} @ ${args.x},${args.y}`;
+    case "setSpawn":
+      return `spawn · @ ${args.x},${args.y}`;
+    case "placeBeat":
+      return `beat · ${args.sectionName} @ ${args.x},${args.y}`;
     case "rollDice":
       return `roll · ${args.notation}${args.reason ? ` (${args.reason})` : ""}`;
     case "askQuestion":
@@ -196,15 +208,30 @@ export function TerminalShell({
 
         case "createChapter": {
           const name = String(args.name ?? "");
-          if (!name) return { ok: false, error: "Chapter name required." };
+          if (!name) return { ok: false, error: "Section name required." };
+          const requestedKind = (args.kind as "preface" | "beat" | undefined) ?? "beat";
           const existing = story.nodes.find(
             (n) => n.type === "section" && (n.data as Section).name === name,
           );
           if (existing) {
             return {
               ok: false,
-              error: `Chapter "${name}" already exists. Use addDialogueNode to add to it.`,
+              error: `Section "${name}" already exists. Use addDialogueNode to add to it.`,
             };
+          }
+          if (requestedKind === "preface") {
+            const prefaceExists = story.nodes.some(
+              (n) =>
+                n.type === "section" &&
+                (n.data as Section).kind === "preface",
+            );
+            if (prefaceExists) {
+              return {
+                ok: false,
+                error:
+                  "A preface section already exists. Only one preface is allowed per project — create this as kind:'beat' instead.",
+              };
+            }
           }
           const sectionCount = story.nodes.filter((n) => n.type === "section").length;
           const id = `section_${name}`;
@@ -217,9 +244,10 @@ export function TerminalShell({
               name,
               title: String(args.title ?? name),
               start_id: "",
+              kind: requestedKind,
             } as Section,
           });
-          return { ok: true, chapterId: id };
+          return { ok: true, chapterId: id, kind: requestedKind };
         }
 
         case "addDialogueNode": {
@@ -376,6 +404,65 @@ export function TerminalShell({
           return { ok: true };
         }
 
+        case "setSpawn": {
+          mapStore.enqueueMutation({
+            type: "set_spawn",
+            x: Number(args.x),
+            y: Number(args.y),
+          });
+          return { ok: true };
+        }
+
+        case "placeBeat": {
+          const sectionName = String(args.sectionName ?? "");
+          if (!sectionName) {
+            return { ok: false, error: "sectionName is required." };
+          }
+          const section = story.nodes.find(
+            (n) =>
+              n.type === "section" &&
+              (n.data as Section).name === sectionName,
+          );
+          if (!section) {
+            return {
+              ok: false,
+              error: `Section "${sectionName}" not found. Call createChapter first.`,
+            };
+          }
+          const sectionData = section.data as Section;
+          if (sectionData.kind !== "beat") {
+            return {
+              ok: false,
+              error: `Section "${sectionName}" has kind:'${sectionData.kind ?? "beat"}'. Only kind:'beat' sections can be placed on the map.`,
+            };
+          }
+          const nodeId = args.nodeId ? String(args.nodeId) : undefined;
+          if (nodeId) {
+            const exists = story.nodes.some(
+              (n) => n.id === nodeId && n.type === "dialogue",
+            );
+            if (!exists) {
+              return {
+                ok: false,
+                error: `Dialogue node "${nodeId}" not found.`,
+              };
+            }
+          }
+          mapStore.enqueueMutation({
+            type: "place_beat",
+            sectionName,
+            nodeId,
+            name: String(args.name ?? sectionData.title ?? sectionName),
+            x: Number(args.x),
+            y: Number(args.y),
+            radius:
+              typeof args.radius === "number" ? Number(args.radius) : undefined,
+            oneShot:
+              typeof args.oneShot === "boolean" ? Boolean(args.oneShot) : undefined,
+          });
+          return { ok: true };
+        }
+
         case "askQuestion": {
           if (!term) return { cancelled: true };
           // Tear down the prompt line if showing — picker draws fresh.
@@ -477,7 +564,8 @@ export function TerminalShell({
 
   /**
    * Slash-command context — gives commands a way to mutate the store
-   * (auto mode) and focus other panels (map / story).
+   * (auto mode), focus other panels (map / story), and export the
+   * project as JSON.
    */
   const commandContext = useRef<CommandContext>({
     toggleAutoMode: () => useDmContextStore.getState().toggleAutoMode(),
@@ -486,6 +574,60 @@ export function TerminalShell({
       return enabled;
     },
     openSurface: (surface) => onOpenSurface?.(surface),
+    exportProject: ({ force } = {}): ExportSummary => {
+      const story = useStoryStore.getState();
+      const dm = useDmContextStore.getState();
+      const mapExport = useMapStore.getState().exportSnapshot;
+
+      if (!mapExport) {
+        return {
+          ok: false,
+          downloaded: false,
+          errorCount: 1,
+          warningCount: 0,
+          errors: [
+            "Map state hasn't been published yet. Open the Map Editor tab once and try again.",
+          ],
+          warnings: [],
+        };
+      }
+
+      const result = buildProject(
+        { nodes: story.nodes },
+        {
+          scene: dm.scene,
+          characters: dm.characters.map((c) => ({
+            id: c.id,
+            name: c.name,
+            role: c.role,
+            description: c.description,
+            motivation: c.motivation,
+          })),
+        },
+        mapExport,
+      );
+
+      const errors = result.issues
+        .filter((i) => i.level === "error")
+        .map((i) => i.message);
+      const warnings = result.issues
+        .filter((i) => i.level === "warning")
+        .map((i) => i.message);
+
+      const shouldDownload = result.ok || !!force;
+      if (shouldDownload) {
+        downloadProject(result.project);
+      }
+
+      return {
+        ok: result.ok,
+        downloaded: shouldDownload,
+        errorCount: errors.length,
+        warningCount: warnings.length,
+        errors,
+        warnings,
+      };
+    },
   }).current;
 
   // Keep openSurface fresh if the prop changes between renders.

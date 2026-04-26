@@ -23,11 +23,24 @@ export interface DialogueNode {
   choices: Choice[];
 }
 
+/**
+ * A Section is a string of dialogue beats with branching choices.
+ * The section ends when a beat has no choices.
+ *
+ * - `preface`: runs once before the player loads into the map.
+ *              Exactly one preface is allowed per project.
+ * - `beat`:    triggered when the player walks within radius of a
+ *              PlacedNarrativeBeat on the map.
+ */
+export type SectionKind = 'preface' | 'beat';
+
 export interface Section {
   id: string;
   name: string; // e.g. "intro", "chapter_1", etc.
   title?: string; // Display title e.g. "Awakening"
   start_id: string;
+  /** Defaults to 'beat'. */
+  kind?: SectionKind;
   // Chapter-level defaults (dialogue nodes can override)
   background?: string;
   music?: string;

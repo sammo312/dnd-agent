@@ -55,16 +55,21 @@ export const addCharacterTool = tool({
 
 export const createChapterTool = tool({
   description:
-    "Create a chapter (section) in the Story Boarder. Chapters group dialogue nodes. Use one chapter per major scene phase (e.g. 'arrival', 'investigation', 'confrontation').",
+    "Create a section (chapter) in the Story Boarder. A section is a string of dialogue beats with branching choices; it ends when a beat has no choices. Two kinds: 'preface' runs once before the player loads into the map (only one per project); 'beat' is triggered on the map by walking near a placed beat. The first section you create should usually be the preface.",
   parameters: z.object({
     name: z
       .string()
       .describe(
-        "snake_case chapter id, e.g. 'tavern_intro'. Used as the canonical key."
+        "snake_case section id, e.g. 'tavern_intro'. Used as the canonical key."
       ),
     title: z
       .string()
       .describe("Display title shown in the editor, e.g. 'The Slaughtered Lamb'"),
+    kind: z
+      .enum(["preface", "beat"])
+      .describe(
+        "'preface' = runs once on load (max one per project). 'beat' = triggered on the map. Default to 'preface' if no preface exists yet, otherwise 'beat'."
+      ),
   }),
 });
 
@@ -219,6 +224,51 @@ export const addPOITool = tool({
   }),
 });
 
+export const setSpawnTool = tool({
+  description:
+    "Set the tile the player loads into when entering the map. Required before export. Usually placed at the edge of the playable area or on the doorstep of the opening location.",
+  parameters: z.object({
+    x: z.number().int().describe("Grid column (0 = left)"),
+    y: z.number().int().describe("Grid row (0 = top)"),
+  }),
+});
+
+export const placeBeatTool = tool({
+  description:
+    "Place a 'beat' section onto the map at a specific tile. When the player walks within `radius` tiles of (x,y), the linked section runs. Use this to wire exploration sections to map locations. The section MUST already exist via createChapter with kind:'beat'.",
+  parameters: z.object({
+    sectionName: z
+      .string()
+      .describe("Name of the section to trigger (must exist, kind:'beat')."),
+    name: z
+      .string()
+      .describe(
+        "Short label shown for the marker, e.g. 'tavern doorstep'. Doesn't have to match the section title."
+      ),
+    x: z.number().int().describe("Grid column (0 = left)"),
+    y: z.number().int().describe("Grid row (0 = top)"),
+    radius: z
+      .number()
+      .int()
+      .min(0)
+      .max(5)
+      .optional()
+      .describe(
+        "Trigger radius in tiles. 0 = exact tile, 1 = adjacent (default), 2+ = wider zone."
+      ),
+    nodeId: z
+      .string()
+      .optional()
+      .describe(
+        "Optional. If set, the beat starts at this specific dialogue node instead of the section's start node."
+      ),
+    oneShot: z
+      .boolean()
+      .optional()
+      .describe("If true (default), the beat fires only once."),
+  }),
+});
+
 /**
  * Ask the DM a multi-choice question. The terminal opens an in-line
  * picker (arrow-keys / 1-9 / enter / esc) and the agent receives the
@@ -294,6 +344,8 @@ export const dmPrepTools = {
   setMapDimensions: setMapDimensionsTool,
   paintTerrain: paintTerrainTool,
   addPOI: addPOITool,
+  setSpawn: setSpawnTool,
+  placeBeat: placeBeatTool,
   askQuestion: askQuestionTool,
   linkToSurface: linkToSurfaceTool,
 };
