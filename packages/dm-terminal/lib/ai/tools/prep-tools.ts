@@ -213,6 +213,28 @@ export const paintTerrainTool = tool({
   }),
 });
 
+/**
+ * POI types that are pure scenery / map dressing — visible decoration,
+ * no narrative weight. The "every POI gets a beat" rule explicitly does
+ * NOT apply to these: they exist to make maps look inhabited, not to
+ * gate the player on a dialogue. The workspace snapshot's POI-coverage
+ * flag also ignores these so dropping a grove of trees doesn't trigger
+ * "MISSING beats for tree, tree, tree, tree, tree".
+ *
+ * Kept as a fixed list rather than a heuristic so the executor can
+ * cheaply check `SCENERY_POI_TYPES.has(type)` and the planner can be
+ * given the same explicit list in its brief.
+ */
+export const SCENERY_POI_TYPES: ReadonlySet<string> = new Set([
+  "tree-single",
+  "flower-bed",
+  "fence-wood",
+  "fence-stone",
+  "fence-iron",
+  "torch",
+  "banner",
+]);
+
 export const addPOITool = tool({
   description:
     "Place a point of interest on the map (building, landmark, encounter spot). EVERY POI must have an associated beat so walking up to it shows the player at least a short description — even decorative landmarks. The expected pattern: addPOI → createChapter with kind:'beat' → addDialogueNode (one terminal node, 1-2 lines describing what the player sees) → placeBeat at the POI's coordinates with radius 1. Don't drop POIs without immediately wiring this beat — an undescribed POI on the map is a bug.",
@@ -248,6 +270,9 @@ export const addPOITool = tool({
         "quarry",
         "tree-single",
         "flower-bed",
+        "fence-wood",
+        "fence-stone",
+        "fence-iron",
         "statue",
         "fountain",
         "torch",
