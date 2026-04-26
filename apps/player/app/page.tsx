@@ -67,10 +67,12 @@ export default function Home() {
 }
 
 /**
- * The original 3D scroll-driven scene, extracted unchanged so the home
- * page can swap it in once the DM clicks "Enter scene".
+ * 3D scroll-driven scene rendering the imported project. We pull the
+ * project out of the store here (rather than threading it through
+ * props) so the dynamic import boundary in `PlayerView` stays simple.
  */
 function SceneStage() {
+  const project = useProjectStore((s) => s.project);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isFirstPerson, setIsFirstPerson] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -115,6 +117,11 @@ function SceneStage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFirstPerson]);
 
+  // The import gate above guarantees a project is loaded before we
+  // mount this stage, but TypeScript can't see that across the store
+  // boundary — bail defensively.
+  if (!project) return null;
+
   return (
     <div ref={containerRef} className="relative">
       {/* Scrollable content — 300vh for smooth camera transitions */}
@@ -123,6 +130,7 @@ function SceneStage() {
       {/* Fixed 3D scene */}
       <div className="fixed inset-0">
         <PlayerView
+          project={project}
           scrollProgress={scrollProgress}
           onFirstPersonChange={handleFirstPersonChange}
         />

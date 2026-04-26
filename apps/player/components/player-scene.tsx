@@ -1,19 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
-import {
-  PlayerScene,
-  type FirstPersonState,
-} from "@dnd-agent/three-engine";
+import { type FirstPersonState } from "@dnd-agent/three-engine";
+import type { ExportedProject } from "@dnd-agent/shared";
+import { PlayerMapScene } from "./scene/player-map-scene";
 
 interface PlayerViewProps {
+  project: ExportedProject;
   scrollProgress: number;
   onFirstPersonChange?: (active: boolean) => void;
 }
 
 export default function PlayerView({
+  project,
   scrollProgress,
   onFirstPersonChange,
 }: PlayerViewProps) {
@@ -55,13 +56,22 @@ export default function PlayerView({
     };
   }, [firstPerson.active]);
 
+  // Initial camera position: top-down over the imported map. The
+  // PlayerScrollCamera will lerp from here on the first frame.
+  const { width, height } = project.map;
+  const initialY = Math.max(width, height) * 0.95;
+
   return (
     <Canvas
-      camera={{ position: [0, 14, 0.1], fov: 50 }}
+      camera={{
+        position: [width / 2, initialY, height / 2 + 0.1],
+        fov: 50,
+      }}
       shadows
       className="w-full h-full"
     >
-      <PlayerScene
+      <PlayerMapScene
+        project={project}
         scrollProgress={scrollProgress}
         firstPerson={firstPerson}
         setFirstPerson={setFirstPerson}
