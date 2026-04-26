@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Sky } from "@react-three/drei";
 import * as THREE from "three";
 import {
-  ClickableGround,
   MovementHandler,
   TerrainGrid,
   TerrainMesh,
@@ -18,6 +17,7 @@ import { PlayerScrollCamera } from "./player-scroll-camera";
 import { BeatProximityWatcher } from "./beat-proximity-watcher";
 import { BeatBeacon } from "./beat-beacon";
 import { WorldProp } from "./world-prop";
+import { MapClickableGround } from "./map-clickable-ground";
 
 interface PlayerMapSceneProps {
   project: ExportedProject;
@@ -47,6 +47,17 @@ export function PlayerMapScene({
   const { map } = project;
   const hasAutoEnteredRef = useRef(false);
   const [walkTarget, setWalkTarget] = useState<THREE.Vector3 | null>(null);
+
+  // Map cells occupy positive world space [0..width] / [0..height].
+  // The engine's MovementHandler / WalkToTarget default to (-10..10),
+  // which silently traps the player in a 10×10 box on any larger map.
+  // Use a single bounds box covering both axes (the engine API is
+  // single-axis), and pad slightly inside the map so the player body
+  // doesn't sink past the terrain edge.
+  const movementBounds = {
+    min: 0.5,
+    max: Math.max(map.width, map.height) - 0.5,
+  };
 
   // Narrative runtime: while a dialogue is active, freeze the player.
   const dialogueActive = useNarrativeStore((s) => s.active !== null);
@@ -144,6 +155,7 @@ export function PlayerMapScene({
           rotation={firstPerson.rotation}
           onMove={handleMove}
           onRotate={handleRotate}
+          bounds={movementBounds}
         />
       )}
 
@@ -155,11 +167,14 @@ export function PlayerMapScene({
         onMove={handleMove}
         onRotate={handleRotate}
         onReachTarget={handleReachTarget}
+        bounds={movementBounds}
       />
 
-      <ClickableGround
-        onClickPosition={handleClickToWalk}
+      <MapClickableGround
+        width={map.width}
+        height={map.height}
         visible={firstPerson.active && !dialogueActive}
+        onClickPosition={handleClickToWalk}
       />
 
       {firstPerson.active && (
