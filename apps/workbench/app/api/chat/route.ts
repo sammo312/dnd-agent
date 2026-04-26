@@ -1,8 +1,17 @@
 import { streamText, convertToCoreMessages } from 'ai';
 import type { Message } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import { allDmTools } from '@dnd-agent/dm-terminal/lib/ai/tools';
 
 export const maxDuration = 60;
+
+// Route Anthropic calls through the Vercel AI Gateway.
+// The gateway exposes an Anthropic-compatible endpoint at https://ai-gateway.vercel.sh
+// authenticated with AI_GATEWAY_API_KEY (auto-provided when the gateway is connected).
+const anthropic = createAnthropic({
+  baseURL: 'https://ai-gateway.vercel.sh/v1',
+  apiKey: process.env.AI_GATEWAY_API_KEY,
+});
 
 const SYSTEM_PROMPT = `You are the Dungeon Master of a living 3D world. You narrate, control the world, and respond to both the DM's commands and the player's actions.
 
@@ -47,8 +56,8 @@ export async function POST(req: Request) {
   const { messages }: { messages: Message[] } = await req.json();
 
   const result = streamText({
-    // Vercel AI Gateway routes by model string — zero-config for Anthropic in v0.
-    model: 'anthropic/claude-sonnet-4',
+    // Gateway expects model IDs in `provider/model` form.
+    model: anthropic('anthropic/claude-sonnet-4'),
     system: SYSTEM_PROMPT,
     messages: convertToCoreMessages(messages),
     tools: allDmTools,
