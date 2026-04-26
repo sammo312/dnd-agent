@@ -19,20 +19,37 @@ import {
 } from "../lib/game/command-router";
 import type { CommandResult } from "../lib/game/command-router";
 import { runProjectExport } from "../lib/export/run-export";
-import { BANNER } from "../lib/terminal/ascii-art";
 import {
   formatNarration,
   formatPrompt,
+  formatPromptInline,
   formatWelcome,
   formatError,
   formatDiceRoll,
   formatToolCall,
-  formatStatus,
 } from "../lib/terminal/output-formatter";
 import { ANSI } from "../lib/terminal/ansi";
 import { Picker, type PickerResult } from "../lib/terminal/picker";
 import { formatLinkCard, type LinkSurface } from "../lib/terminal/link-card";
 import { CommandMenu } from "../lib/terminal/command-menu";
+import {
+  createThinkingIndicator,
+  type ThinkingIndicator,
+} from "../lib/terminal/thinking-indicator";
+
+/**
+ * Tools whose `execute` runs on the API route, not in the client. The
+ * AI SDK still fires useChat's `onToolCall` for these (it doesn't know
+ * the difference), so we short-circuit them in the client dispatcher
+ * to avoid the "Unknown tool" path racing the real server result.
+ *
+ * Keep this in sync with `dmTools` (any tool defined with an `execute`
+ * function in lib/ai/tools/).
+ */
+const SERVER_SIDE_TOOL_NAMES = new Set<string>([
+  "rollDice",
+  "planNarrative",
+]);
 
 export interface TerminalConfig {
   /** API endpoint for chat. Default: "/api/chat" */
@@ -181,10 +198,30 @@ export function TerminalShell({
   const promptShownRef = useRef(false);
   const pickerRef = useRef<Picker | null>(null);
   const commandMenuRef = useRef<CommandMenu | null>(null);
+  // Animated "thinking…" spinner — shown during the silent gaps
+  // between user-submit and first stream chunk, and between a tool
+  // result and the model deciding what to do next. Both gaps can
+  // run 5-15s when the planner tool fires and used to look like a
+  // hung agent.
+  //
+  // Init in a mount effect rather than at render-time so React's
+  // strict-mode double-invoke doesn't leave a stray timer on a torn-
+  // down indicator. Callers always go through `?.start/.stop`, so a
+  // null indicator on the very first render is a no-op (and there's
+  // nothing to spin over yet anyway — no message has streamed).
+  const thinkingRef = useRef<ThinkingIndicator | null>(null);
+  useEffect(() => {
+    thinkingRef.current = createThinkingIndicator(termRef);
+    return () => {
+      thinkingRef.current?.stop();
+      thinkingRef.current = null;
+    };
+  }, []);
 
   const showPrompt = useCallback(() => {
     if (!promptShownRef.current && !pickerRef.current) {
-      termRef.current?.write(formatPrompt());
+      const auto = useDmContextStore.getState().autoMode;
+      termRef.current?.write(formatPrompt(auto));
       promptShownRef.current = true;
     }
   }, []);
@@ -199,6 +236,18 @@ export function TerminalShell({
       toolName: string,
       args: Record<string, unknown>,
     ): Promise<unknown> => {
+      // Server-side tools (rollDice, planNarrative) run on the API
+      // route via their `execute` functions. The AI SDK still invokes
+      // useChat's `onToolCall` for them on the client, but we have no
+      // business handling them here — returning undefined lets the
+      // server's streamed result win the race instead of our default
+      // branch returning a bogus "Unknown tool" error that the model
+      // then sees as the tool result. (This is the source of the
+      // "Error: Unknown tool: planNarrative" line in the transcript.)
+      if (SERVER_SIDE_TOOL_NAMES.has(toolName)) {
+        return undefined;
+      }
+
       const story = useStoryStore.getState();
       const dm = useDmContextStore.getState();
       const mapStore = useMapStore.getState();
@@ -235,13 +284,34 @@ export function TerminalShell({
           const existing = story.nodes.find(
             (n) => n.type === "section" && (n.data as Section).name === name,
           );
+          // Idempotent: if a section with the same name *and* kind
+          // already exists, return success pointing at the existing
+          // section. The executor model frequently retries `createChapter`
+          // on cross-turn builds (auto mode, big maps) and the previous
+          // hard-error wasted 3-5 tool calls per turn, which compounded
+          // into rate-limit failures. Only error when there's a real
+          // conflict (same name, different kind).
           if (existing) {
+            const existingData = existing.data as Section;
+            if (existingData.kind === requestedKind) {
+              return {
+                ok: true,
+                chapterId: existing.id,
+                kind: existingData.kind,
+                alreadyExisted: true,
+              };
+            }
             return {
               ok: false,
-              error: `Section "${name}" already exists. Use addDialogueNode to add to it.`,
+              error: `Section "${name}" already exists with kind "${existingData.kind}", but you asked for "${requestedKind}". Pick a different name or use the existing section via addDialogueNode.`,
             };
           }
           if (requestedKind === "preface") {
+            // The "only one preface per project" invariant is real and
+            // worth keeping — but if the executor is asking for a
+            // *named* preface and one of a different name exists, the
+            // existing-name branch above already covered the same-name
+            // case. So this only fires when the names differ.
             const prefaceExists = story.nodes.some(
               (n) =>
                 n.type === "section" &&
@@ -257,6 +327,10 @@ export function TerminalShell({
           }
           const sectionCount = story.nodes.filter((n) => n.type === "section").length;
           const id = `section_${name}`;
+          // Deterministic placeholder id keyed off the section name so
+          // `addDialogueNode` can recognize and replace it later when
+          // the agent adds the section's first real node.
+          const placeholderId = `${name}__placeholder`;
           story.addNode({
             id,
             type: "section",
@@ -265,9 +339,42 @@ export function TerminalShell({
               id: name,
               name,
               title: String(args.title ?? name),
+              // Will be overwritten to `placeholderId` by the
+              // `addConnection` call below — the store's section→dialogue
+              // edge auto-populates the section's start_id.
               start_id: "",
               kind: requestedKind,
             } as Section,
+          });
+          // Seed a placeholder dialogue node + connection so the section
+          // is exportable from the moment of creation. Without this, an
+          // agent that creates the section and then runs out of tool
+          // budget (rate limit, hit max steps, user interrupt) leaves
+          // the project in a malformed state where export blocks on
+          // "Section X has no start node." With it, the worst case is
+          // a clearly-labeled placeholder line in the editor — visible,
+          // non-blocking, easy for the user to fill in.
+          story.addNode({
+            id: placeholderId,
+            type: "dialogue",
+            position: { x: 450, y: 100 + sectionCount * 380 },
+            data: {
+              id: placeholderId,
+              speaker: "Narrator",
+              dialogue: [
+                {
+                  text: "(empty section — replace with your opening line)",
+                  speed: 60,
+                },
+              ],
+              choices: [],
+            } as DialogueNode,
+          });
+          story.addConnection({
+            id: `conn_${id}_${placeholderId}`,
+            from: id,
+            to: placeholderId,
+            label: "starts",
           });
           return { ok: true, chapterId: id, kind: requestedKind };
         }
@@ -361,11 +468,17 @@ export function TerminalShell({
             story.addNode(newNode);
           }
 
+          // Detect the placeholder seeded by `createChapter` so we can
+          // promote the agent's first real node over it instead of
+          // leaving the placeholder as the section's start. The
+          // placeholder id is deterministic (`${sectionName}__placeholder`).
+          const placeholderId = `${chapterName}__placeholder`;
+          const startIsPlaceholder = sectionData.start_id === placeholderId;
           const explicitStart = args.isStart === true;
           const noStartYet = !sectionData.start_id;
-          const shouldBeStart = explicitStart || noStartYet;
+          const shouldBeStart = explicitStart || noStartYet || startIsPlaceholder;
 
-          if (shouldBeStart) {
+          if (shouldBeStart && nodeId !== placeholderId) {
             story.updateNode(sectionStoreNode.id, {
               start_id: nodeId,
             } as Partial<Section>);
@@ -378,6 +491,15 @@ export function TerminalShell({
                 to: nodeId,
                 label: "starts",
               });
+            }
+            // If the previous start was a placeholder we seeded, drop
+            // it. `deleteNode` also cleans up its dangling section→
+            // placeholder connection in the same set() call.
+            if (
+              startIsPlaceholder &&
+              useStoryStore.getState().nodes.some((n) => n.id === placeholderId)
+            ) {
+              useStoryStore.getState().deleteNode(placeholderId);
             }
           }
 
@@ -588,7 +710,7 @@ export function TerminalShell({
     onPrepDispatchReady?.(handlePrepToolCall);
   }, [onPrepDispatchReady, handlePrepToolCall]);
 
-  const { messages, append, isLoading } = useChat({
+  const { messages, append, isLoading, stop } = useChat({
     api: config?.apiEndpoint ?? "/api/chat",
     maxSteps: 16,
     experimental_prepareRequestBody: ({ messages }) => ({
@@ -637,13 +759,33 @@ export function TerminalShell({
   const redrawLine = useCallback((line: string) => {
     const term = termRef.current;
     if (!term) return;
+    const auto = useDmContextStore.getState().autoMode;
     term.write(ANSI.cursorToStart + ANSI.clearLine);
-    term.write(`${ANSI.amber}›${ANSI.reset} ${ANSI.input}${line}`);
+    term.write(`${formatPromptInline(auto)}${line}`);
   }, []);
+
+  // Keep the prompt's [auto] tag in sync with the store. The slash-command
+  // path already redraws on submit, but anything else that toggles the
+  // store (a future menu button, programmatic flip) would otherwise
+  // leave the on-screen prompt stale until the next keystroke.
+  useEffect(() => {
+    return useDmContextStore.subscribe((state, prev) => {
+      if (state.autoMode === prev.autoMode) return;
+      if (!promptShownRef.current) return;
+      if (pickerRef.current || isStreamingRef.current) return;
+      redrawLine(inputHandler.getBuffer());
+    });
+  }, [redrawLine, inputHandler]);
 
   const sendToAI = useCallback(
     (text: string) => {
       isStreamingRef.current = true;
+      // Spinner pops on its own line below the user input. Cleared
+      // automatically when the first text/tool chunk streams in
+      // (see the messages effect) and re-armed after each tool
+      // result so the gap before the model's next decision doesn't
+      // look hung either.
+      thinkingRef.current?.start("thinking");
       append({ role: "user", content: text });
     },
     [append],
@@ -691,8 +833,51 @@ export function TerminalShell({
         return;
       }
 
+      // Ctrl-C: cancel everything and reset the line. We have to handle
+      // this BEFORE the isLoading guard or there's no way to bail out
+      // of a runaway streaming response. Three states to cover:
+      //   1. Streaming   → stop() the chat, reset bookkeeping refs,
+      //                    print "^C interrupted." and re-prompt.
+      //   2. Menu open   → erase menu (the rest of the line clear runs
+      //                    in the idle path).
+      //   3. Idle        → clear input buffer, reprint the line so the
+      //                    user lands on a fresh prompt.
+      if (data === "\x03") {
+        const menu = commandMenuRef.current;
+        menu?.erase();
+
+        if (isLoading) {
+          // Aborts the underlying fetch, which ends the stream and
+          // prevents any further onToolCall fan-out. The planner's
+          // server-side generateText keeps running for a beat (we
+          // can't reach into it from the client) but its tokens are
+          // already orphaned — they won't reach the workspace.
+          stop();
+          // Kill the spinner before printing the interrupt notice or
+          // it'll keep redrawing over the message until the next tick.
+          thinkingRef.current?.stop();
+          isStreamingRef.current = false;
+          toolResultRenderedRef.current.clear();
+          term.write(
+            `\r\n${ANSI.error}^C interrupted.${ANSI.reset}\r\n`,
+          );
+          promptShownRef.current = false;
+          showPrompt();
+          return;
+        }
+
+        // Idle interrupt — drop whatever's in the input buffer and
+        // give the user a clean line.
+        inputHandler.clear();
+        term.write("^C\r\n");
+        promptShownRef.current = false;
+        showPrompt();
+        return;
+      }
+
       if (isLoading) {
-        // Allow Ctrl+C to interrupt later — for now silently swallow.
+        // Block other keystrokes while streaming. (Ctrl-C above is the
+        // only escape hatch.)
         return;
       }
 
@@ -787,11 +972,9 @@ export function TerminalShell({
           menu.refresh(event.line);
           break;
 
-        case "interrupt":
-          menu.erase();
-          term.write("^C\r\n");
-          showPrompt();
-          break;
+        // (interrupt is intercepted above the inputHandler.processKey
+        // call so it can fire during streaming — input-handler still
+        // emits it but we never get here.)
 
         case "tab": {
           const buffer = inputHandler.getBuffer();
@@ -807,7 +990,7 @@ export function TerminalShell({
         }
       }
     },
-    [isLoading, inputHandler, showPrompt, sendToAI, redrawLine, config, commandContext],
+    [isLoading, stop, inputHandler, showPrompt, sendToAI, redrawLine, config, commandContext],
   );
 
   // Render streamed assistant output: text deltas + tool call labels + tool results.
@@ -828,6 +1011,9 @@ export function TerminalShell({
         const newText = part.text.slice(alreadyRendered);
 
         if (newText) {
+          // Real output is about to land — kill the spinner so its
+          // line gets reclaimed before the narration writes.
+          thinkingRef.current?.stop();
           const termText = formatNarration(newText).replace(/\n/g, "\r\n");
           term.write(termText);
           renderedRef.current.set(partId, part.text.length);
@@ -848,12 +1034,23 @@ export function TerminalShell({
           (inv.state === "call" || inv.state === "result") &&
           !toolCallRenderedRef.current.has(callKey)
         ) {
+          // Same deal — spinner off so the breadcrumb owns the line.
+          thinkingRef.current?.stop();
           toolCallRenderedRef.current.add(callKey);
           const label = describeToolCall(
             inv.toolName,
             (inv.args ?? {}) as Record<string, unknown>,
           );
           term.write("\r\n" + formatToolCall(label));
+
+          // The planner is server-side and the call→result roundtrip
+          // takes 5-10s while Sonnet generates. Restart the spinner
+          // with a contextual label so the wait reads as activity, not
+          // a hang. Other tools resolve fast (client-side prep tools
+          // run synchronously in onToolCall) so no need to re-arm.
+          if (inv.state === "call" && inv.toolName === "planNarrative") {
+            thinkingRef.current?.start("consulting planner");
+          }
         }
 
         if (
@@ -891,6 +1088,13 @@ export function TerminalShell({
             );
           }
           // Successful prep-tool results: no extra output (the breadcrumb is enough).
+
+          // Tool just completed — model now goes silent again while it
+          // decides what to do next. Bridge that gap with a spinner so
+          // long auto-mode runs don't show seconds of dead air between
+          // breadcrumbs. The isLoading→false effect below will stop it
+          // when the turn actually wraps up.
+          thinkingRef.current?.start("deciding next step");
         }
       }
     }
@@ -898,6 +1102,9 @@ export function TerminalShell({
 
   useEffect(() => {
     if (!isLoading && isStreamingRef.current && !pickerRef.current) {
+      // Stream ended cleanly — kill any spinner still ticking from the
+      // last tool result so it doesn't outlive the turn.
+      thinkingRef.current?.stop();
       isStreamingRef.current = false;
       showPrompt();
     }
@@ -916,12 +1123,15 @@ export function TerminalShell({
     startupDone.current = true;
     const term = termRef.current;
     if (!term) return;
-    term.write(config?.banner ?? BANNER);
-    term.write(config?.welcomeMessage?.() ?? formatWelcome());
-    const auto = useDmContextStore.getState().autoMode;
-    if (auto) {
-      term.write(formatStatus("auto mode is on"));
+    // Optional banner first (most hosts don't supply one anymore — the
+    // welcome formatter carries the title bar instead, which is plenty
+    // of identity and a fraction of the visual weight).
+    if (config?.banner) {
+      term.write(config.banner);
     }
+    term.write(config?.welcomeMessage?.() ?? formatWelcome());
+    // The prompt itself carries the persistent [auto] tag now; no need
+    // for a separate boot-time status line.
     showPrompt();
   }, [showPrompt, config]);
 

@@ -56,15 +56,49 @@ export function routeCommand(
     }
 
     case '/auto': {
-      const flag = args[0]?.toLowerCase();
+      // Three flavors:
+      //   /auto                  → toggle
+      //   /auto on | /auto off   → explicit set
+      //   /auto <message>        → set on, then send <message> to the agent
+      //   /auto on  <message>    → set on, then send <message>
+      //   /auto off <message>    → off + ignore the trailing message (warn)
+      const firstFlag = args[0]?.toLowerCase();
+      const hasFlag = firstFlag === 'on' || firstFlag === 'off';
+      const inlineMessage = (hasFlag ? args.slice(1) : args).join(' ').trim();
+
+      if (firstFlag === 'off' && inlineMessage.length > 0) {
+        // Don't silently swallow a message the user typed — they meant
+        // something by it. Bail with a clear hint.
+        return {
+          output:
+            formatStatus('auto mode off') +
+            formatError(
+              `Ignored "${inlineMessage}". /auto off can't carry a message; send it on its own.`,
+            ) +
+            '\r\n',
+        };
+      }
+
       let next: boolean;
-      if (flag === 'on') {
+      if (firstFlag === 'on' || inlineMessage.length > 0) {
         next = ctx.setAutoMode?.(true) ?? true;
-      } else if (flag === 'off') {
+      } else if (firstFlag === 'off') {
         next = ctx.setAutoMode?.(false) ?? false;
       } else {
         next = ctx.toggleAutoMode?.() ?? false;
       }
+
+      if (inlineMessage.length > 0) {
+        // Echo the toggle status, then pipe the inline message through
+        // to the AI. The shell's submit handler will call sendToAI with
+        // aiMessage and skip showPrompt (sendToAI re-shows it later).
+        return {
+          output: formatStatus('auto mode on — agent will drive without asking'),
+          sendToAI: true,
+          aiMessage: inlineMessage,
+        };
+      }
+
       return {
         output: next
           ? formatStatus('auto mode on — agent will drive without asking')
@@ -115,7 +149,9 @@ export function routeCommand(
       return {
         output:
           `\r\n${ANSI.amber}commands${ANSI.reset}\r\n` +
-          `${ANSI.dimText}  /auto [on|off]   toggle agent auto-drive${ANSI.reset}\r\n` +
+          `${ANSI.dimText}  /auto            toggle agent auto-drive${ANSI.reset}\r\n` +
+          `${ANSI.dimText}  /auto on|off     explicit on/off${ANSI.reset}\r\n` +
+          `${ANSI.dimText}  /auto <message>  turn on + send a steering message${ANSI.reset}\r\n` +
           `${ANSI.dimText}  /map             focus the Map Editor panel${ANSI.reset}\r\n` +
           `${ANSI.dimText}  /story           focus the Story Boarder panel${ANSI.reset}\r\n` +
           `${ANSI.dimText}  /export [-f]     download project JSON (use -f to bypass errors)${ANSI.reset}\r\n` +

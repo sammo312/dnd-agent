@@ -27,6 +27,7 @@
 import { tool, generateText } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
+import { TERRAIN_TEMPLATES_PROMPT } from "../terrain-templates";
 
 // Same gateway setup as the chat route. The planner call lives inside
 // the same lambda, so it shares the AI_GATEWAY_API_KEY env var that's
@@ -45,17 +46,29 @@ A single design brief in plain prose, structured like this — keep section head
 
 THEME — one sentence on tone, genre, vibe.
 CHARACTERS — bulleted list, max 4. For each: name, role, one-sentence personality hook the executor can use when writing dialogue.
-MAP — width × height (pick something between 30×30 and 60×60 unless the request demands otherwise). Then a few sentences on the broad zones (e.g. "north half is dense forest, south half is a cleared plain with the village in the middle"). Don't enumerate every tile.
-POIS — bulleted list, max 4 for a first-pass plan. For each: name, POI type from the catalog (tavern, ruin, statue, well, signpost, tree, rock, etc.), approximate tile coords, and ONE sentence describing what the player sees when they walk up. Every POI must have a beat — call this out by including a tiny 1-2 sentence dialogue snippet the executor can use as the beat content.
+MAP — name the terrain template that best fits (Island, Volcano, Forest, Coastline, Mountain Pass, River Valley, Desert Ruins, Frozen Tundra, or "custom" if none fit), then give the executor a tight layer-by-layer paint plan adapted to your dimensions. Format each layer as one short sentence with rough tile bounds, e.g. "L1 base: deep-water full container", "L2 landmass: grass overlapping rectangles centered on (24,18)", "L3 hill: rock cluster (20,15)→(28,20)". 4-6 layers, each translating to one paintTerrain call. Lean on the templates section below for the recipe — adapt freely, don't reproduce them verbatim.
+
+Pick non-square dimensions to match the chosen template's silhouette. Stay between 25 and 60 on each axis.
+NARRATIVE POIS — bulleted list, max 4 for a first-pass plan. These are the landmarks with story weight: tavern, ruin, mansion, well, watchtower, mine, bridge, named statue, etc. For each: name, POI type from the catalog, approximate tile coords, and ONE sentence describing what the player sees when they walk up. Every narrative POI must have a beat — include a tiny 1-2 sentence dialogue snippet the executor can use as the beat content.
+
+SCENERY DRESSING — separate bulleted list, 4-8 entries describing CLUSTERS of decorative POIs (no beats, pure visual texture). Use only these types: tree-single, flower-bed, fence-wood, fence-stone, fence-iron, torch, banner. For each cluster, describe the shape and location, e.g.:
+  - "Pine grove of 5-6 trees clustered around (12,8) breaking up the hillside"
+  - "Flower beds (3) lining the village square near the well"
+  - "Wood fence segments (4) along the road from the mill to the bridge"
+  - "Torches (2) flanking the ruin entrance for atmosphere"
+  - "Banners (2) on the castle approach"
+The executor will translate each cluster into 3-7 individual addPOI calls. Plan scenery deliberately — bare maps feel dead, but cluttered maps feel busy. Treat scenery like punctuation: trees thicken forest edges, fences mark property lines, torches mark importance, flowers mark cultivation.
 SPAWN — single tile coord plus a one-line rationale ("edge of forest path facing the village so the first thing the player sees is the rooftops").
 PREFACE — 2-4 sentence opening framing the executor will turn into the preface dialogue node. Write it in-fiction, second person — this is what the player reads. Use the editor's color tags inline if a noun deserves one (red for threats, yellow for items, cyan for landmarks, green for magic, magenta for visions). Most prefaces have zero or one colored token — don't decorate.
-BEATS — for each POI, a short approach beat (1-2 short sentences of in-fiction prose, same color rules as preface). The executor will create the beat section + node and place the trigger on the POI's tile.
+BEATS — for each NARRATIVE POI (not scenery), a short approach beat (1-2 short sentences of in-fiction prose, same color rules as preface). The executor will create the beat section + node and place the trigger on the POI's tile. Scenery POIs do NOT need beats.
 
 ## Constraints
 - Prefer a TIGHT, COHERENT first pass over a maximalist one. The executor has a tool budget per turn — overdesigning means rate-limit failures, not richness.
 - All in-fiction prose (preface, beat snippets) is for the player's eyes. Plain narration by default; reserve excited/thoughtful/hesitant pace for character dialogue, not narration.
 - Do not output JSON. Do not output tool call syntax. Do not number the sections. Just the design brief.
-- Do not preamble. Do not say "Here's the plan:". Start with "THEME — ..." on the first line.`;
+- Do not preamble. Do not say "Here's the plan:". Start with "THEME — ..." on the first line.
+
+${TERRAIN_TEMPLATES_PROMPT}`;
 
 export const plannerTool = tool({
   description:

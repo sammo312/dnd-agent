@@ -1,3 +1,6 @@
+import { SCENERY_POI_TYPES } from "./tools/prep-tools";
+import { TERRAIN_TEMPLATES_PROMPT } from "./terrain-templates";
+
 export interface WorkspaceSnapshot {
   scene: {
     title?: string;
@@ -108,10 +111,17 @@ Pick whichever fits — askQuestion is great for the FIRST question to make star
 Keep this pass SMALL. You have a tight tool budget per turn, so prioritize ruthlessly:
 1. setSceneContext — save the pitch.
 2. addCharacter — once per named character (max 3-4 in this first pass).
-3. setMapDimensions + 1-2 paintTerrain calls covering broad zones — big rectangles, not detail work.
+3. setMapDimensions, then 4-6 paintTerrain calls following one of the terrain templates below. Pick the template whose silhouette best matches the scene (Island, Volcano, Forest, Coastline, Mountain Pass, River Valley, Desert Ruins, Frozen Tundra), adapt its layer plan to your dimensions, and paint top-down: negative-space base first, then landform, then elevation, then water/texture. Avoid the boring failure mode — flat grass square with one forest blob — by always doing the negative-space layer when the scene's silhouette isn't a simple rectangle.
 4. createChapter with kind:'preface' + 1 addDialogueNode for the opening framing beat.
-5. (Optional, if there's an obvious location) addPOI for the landmark itself, then createChapter with kind:'beat' + addDialogueNode (a short approach description) + placeBeat at the POI's tile to wire it onto the map. POIs and beats travel as a unit — never drop a POI without its beat.
-6. setSpawn somewhere sensible (an edge tile, or the doorstep of the opening location).
+5. (Optional, if there's an obvious location) addPOI for the landmark itself, then createChapter with kind:'beat' + addDialogueNode (a short approach description) + placeBeat at the POI's tile to wire it onto the map. Narrative POIs and beats travel as a unit — never drop a narrative POI without its beat.
+6. **Scenery dressing — bulk-place 8-15 decorative POIs** to make the map look inhabited. Use only addPOI (no beat, no dialogue) for these types: tree-single, flower-bed, fence-wood, fence-stone, fence-iron, torch, banner. Cluster them deliberately:
+   - **Trees** in groves of 3-7 along the edges of forest tiles, on hillsides, in clearings — never in straight lines. Vary spacing.
+   - **Flower beds** in 2-3s near villages, gardens, ruins, or scattered in grassland.
+   - **Fences** as 3-5 short segments around buildings or property lines (pick whichever fence material fits — wood for farms, stone for old estates, iron for fortified or magical places).
+   - **Torches** flanking paths into important POIs, on bridges, around ritual sites — usually in pairs.
+   - **Banners** near settlements or castles to mark territory or faction.
+   This pass is cheap: each item is a single addPOI call. Don't overthink names — "Oak", "Birch", "Garden Bed", "Fence", "Torch" are fine. The goal is visual texture, not lore.
+7. setSpawn somewhere sensible (an edge tile, or the doorstep of the opening location).
 
 That's the whole first-pass build. **Do not** drop 6 POIs and 8 dialogue nodes on turn one — you'll get rate-limited and the DM hasn't validated the shape yet.
 
@@ -157,11 +167,16 @@ The DM ships the project to a separate "player" app via JSON export. The project
   Most nodes have ZERO colored segments. A node with a color should usually have exactly one. If you find yourself coloring three different things in one beat, you're decorating — strip it back.
 - Map coords: x = column (0 = left), y = row (0 = top). paintTerrain is inclusive on both ends.
 - placeBeat needs the section to already exist via createChapter with kind:'beat'. radius defaults to 1 (adjacent tiles trigger). Use 0 for exact-tile, 2+ for a wider zone (e.g. crossing a bridge).
-- **EVERY POI gets a beat.** This is a hard rule, not a suggestion. When you addPOI, also addChapter(kind:'beat') + addDialogueNode + placeBeat at the POI's coordinates so walking up to it always shows the player something. Even purely decorative POIs (a statue, a fountain, a single tree) deserve one short terminal dialogue node — "A weathered statue of a forgotten saint, eyes worn smooth by rain." That's enough. Without this the player walks past the landmark in silence, which feels broken. The workspace snapshot below flags any POIs that don't yet have a beat — fix those before adding more POIs or flagging the project ready.
+- **NARRATIVE POIs get beats. SCENERY POIs don't.** Two distinct categories:
+  - **Narrative POIs** (tavern, ruin, mansion, well, watchtower, statue with lore, mine, bridge, etc.) — these are landmarks the player should stop at. When you addPOI, also addChapter(kind:'beat') + addDialogueNode + placeBeat at the POI's coordinates so walking up shows the player something. Without this the player walks past in silence, which feels broken.
+  - **Scenery POIs** — pure map dressing, no beat needed. The fixed list: tree-single, flower-bed, fence-wood, fence-stone, fence-iron, torch, banner. These exist to make the map look alive — drop as many as the scene needs without any beat / dialogue / placeBeat overhead.
+  The workspace snapshot below flags **narrative** POIs that don't yet have a beat (it ignores scenery). Fix those before adding more narrative POIs or flagging the project ready.
 - setSpawn picks where the player loads in. Don't forget it — the project can't be exported without one.
 - When the DM asks for dice (e.g. "roll a d20"), use the rollDice tool.
 - askQuestion returns either { cancelled: false, value, label } or { cancelled: true }. If cancelled, default to a sensible choice and proceed.
 - linkToSurface is purely a UI nudge — it doesn't change any data.
+
+${TERRAIN_TEMPLATES_PROMPT}
 
 ## Current workspace state
 ${
@@ -225,23 +240,37 @@ function formatWorkspace(w: WorkspaceSnapshot): string {
   // A POI is "covered" if at least one placed beat sits on its tile and
   // points at a beat section that actually has dialogue nodes. Anything
   // less means the player walks up to the landmark in silence.
+  //
+  // SCENERY_POI_TYPES (trees, flower beds, fences, torches, banners)
+  // are excluded from the coverage check — they exist to make maps look
+  // inhabited, not to gate the player on dialogue. Without this filter
+  // the agent never places foliage because every tree would trip the
+  // "MISSING beats" warning.
   const beatsByTile = new Set(
     w.map.beats
       .filter((b) => beatSectionsWithNodes.has(b.sectionName))
       .map((b) => `${b.x},${b.y}`),
   );
-  const uncoveredPOIs = w.map.poiSummary.filter(
+  const narrativePOIs = w.map.poiSummary.filter(
+    (p) => !SCENERY_POI_TYPES.has(p.type),
+  );
+  const sceneryCount = w.map.poiSummary.length - narrativePOIs.length;
+  const uncoveredPOIs = narrativePOIs.filter(
     (p) => !beatsByTile.has(`${p.x},${p.y}`),
   );
+  const sceneryNote =
+    sceneryCount > 0 ? ` (+${sceneryCount} scenery, no beats needed)` : "";
   const poiCoverageLine =
-    w.map.poiSummary.length === 0
-      ? "POI coverage: (no POIs yet)"
+    narrativePOIs.length === 0
+      ? sceneryCount === 0
+        ? "POI coverage: (no POIs yet)"
+        : `POI coverage: ${sceneryCount} scenery placed, no narrative POIs yet`
       : uncoveredPOIs.length === 0
-        ? `POI coverage: all ${w.map.poiSummary.length} have beats`
+        ? `POI coverage: all ${narrativePOIs.length} narrative POIs have beats${sceneryNote}`
         : `POI coverage: MISSING beats for ${uncoveredPOIs
             .slice(0, 6)
             .map((p) => `${p.name}@${p.x},${p.y}`)
-            .join("; ")}${uncoveredPOIs.length > 6 ? `, +${uncoveredPOIs.length - 6} more` : ""} — fix before adding new POIs`;
+            .join("; ")}${uncoveredPOIs.length > 6 ? `, +${uncoveredPOIs.length - 6} more` : ""}${sceneryNote} — fix before adding new narrative POIs`;
 
   const ready =
     prefaceHasNode &&
