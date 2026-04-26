@@ -11,36 +11,45 @@ interface GroundDetailProps {
 }
 
 /**
- * Terrain ids that should sprout grass tufts and pebbles. Anything not
- * in this list (water, rock, stone-floor, etc.) stays bare so the
- * scatter actually communicates the *kind* of ground rather than just
- * carpeting the entire map.
+ * Terrain ids that should get a soft tone-jitter pass on top of the
+ * cube. Anything not in this list (water, lava, paved roads, etc.)
+ * stays untouched so the variation actually communicates "this is
+ * alive ground" rather than carpeting the whole map.
  */
-const GRASS_TILES = new Set(["grass", "meadow", "marsh", "swamp"]);
-/** Forest tiles read better with denser tufts and *no* pebbles. */
-const FOREST_TILES = new Set(["forest"]);
-/** Stony tiles get pebbles only — no grass. */
-const STONY_TILES = new Set(["mountain", "rock", "gravel", "dirt-road"]);
+const NATURAL_TILES = new Set([
+  "grass",
+  "meadow",
+  "forest",
+  "swamp",
+  "marsh",
+  "dirt",
+  "dirt-road",
+  "gravel",
+  "mountain",
+  "rock",
+  "sand",
+  "desert",
+]);
 
 /**
- * Per-frame instanced scatter of grass tufts + pebbles across grass-y
- * tiles of the imported map. Two `<instancedMesh>` instances total —
- * even on a 50×50 map this is two draw calls instead of thousands.
+ * Subtle ground texture variation. Instead of standing 3D blades and
+ * pebbles (which read as discrete *objects* the player walks past),
+ * we lay flat textured patches on top of natural-ground cells. From
+ * eye level they read as ground texture; only the silhouettes of the
+ * cube edges + props show through.
  *
- * Layout is deterministic per cell coordinate so the world doesn't
- * shimmer between renders.
+ * Implementation: a single instanced flat ring of low-opacity discs,
+ * tinted by terrain. One draw call covers the whole map.
+ *
+ * Cost on a 50×50 map: ~1 disc per natural cell, capped at 3500.
  */
 export function GroundDetail({ cells, width, height }: GroundDetailProps) {
-  const grassRef = useRef<THREE.InstancedMesh>(null);
-  const pebbleRef = useRef<THREE.InstancedMesh>(null);
+  const decalRef = useRef<THREE.InstancedMesh>(null);
 
-  // Pre-compute every instance's matrix once. We cap the totals so
-  // pathologically large maps don't melt low-end GPUs.
-  const { grassMatrices, pebbleMatrices } = useMemo(() => {
-    const MAX_GRASS = 4500;
-    const MAX_PEBBLES = 1500;
-    const grass: THREE.Matrix4[] = [];
-    const pebbles: THREE.Matrix4[] = [];
+  const { matrices, colors } = useMemo(() => {
+    const MAX_DECALS = 3500;
+    const ms: THREE.Matrix4[] = [];
+    const cs: THREE.Color[] = [];
     const dummy = new THREE.Object3D();
 
     // Cheap deterministic hash → unit float for (x, y, k).
@@ -51,101 +60,107 @@ export function GroundDetail({ cells, width, height }: GroundDetailProps) {
       return ((n >>> 0) % 1000) / 1000;
     };
 
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
+    // Tone shift table — what color the patch nudges *toward*. We
+    // never paint the patch white or saturated; we only nudge a
+    // little lighter or darker than the underlying terrain, which is
+    // what real ground does in golden-hour light.
+    const tonesByTerrain: Record<string, [string, string]> = {
+      grass: ["#6fa552", "#3f6b30"],
+      meadow: ["#8eb86b", "#4d7a3b"],
+      forest: ["#3a5e2c", "#22381a"],
+      swamp: ["#4f5c3a", "#2c331f"],
+      marsh: ["#5a6a47", "#33402a"],
+      dirt: ["#8c6a48", "#5a4128"],
+      "dirt-road": ["#a08456", "#705733"],
+      gravel: ["#9a948b", "#6b6660"],
+      mountain: ["#9a948b", "#5b554f"],
+      rock: ["#a09a92", "#5e5853"],
+      sand: ["#e8d5a6", "#bfa372"],
+      desert: ["#e0c890", "#b59a60"],
+    };
+
+    for (let y = 0; y < height && ms.length < MAX_DECALS; y++) {
+      for (let x = 0; x < width && ms.length < MAX_DECALS; x++) {
         const cell = cells[y]?.[x];
         if (!cell) continue;
-        const isGrass = GRASS_TILES.has(cell.terrain);
-        const isForest = FOREST_TILES.has(cell.terrain);
-        const isStony = STONY_TILES.has(cell.terrain);
-        if (!isGrass && !isForest && !isStony) continue;
+        if (!NATURAL_TILES.has(cell.terrain)) continue;
 
-        const baseY = (cell.elevation ?? 0) * 0.3 + 0.05; // sit on top
+        const tones = tonesByTerrain[cell.terrain];
+        if (!tones) continue;
+
+        const baseY = (cell.elevation ?? 0) * 0.3 + 0.011; // hover just above
         const cellCx = x + 0.5;
         const cellCz = y + 0.5;
 
-        // Grass tufts. Forest = more tufts.
-        const tuftCount = isForest ? 6 : isGrass ? 3 : 0;
-        for (let i = 0; i < tuftCount && grass.length < MAX_GRASS; i++) {
-          const u = hash(x, y, i * 7 + 1);
-          const v = hash(x, y, i * 7 + 2);
-          const r = hash(x, y, i * 7 + 3);
-          const tx = cellCx + (u - 0.5) * 0.85;
-          const tz = cellCz + (v - 0.5) * 0.85;
-          const sy = 0.12 + r * 0.18;
-          dummy.position.set(tx, baseY + sy / 2, tz);
-          dummy.rotation.set(0, r * Math.PI * 2, 0);
-          dummy.scale.set(1, sy / 0.2, 1);
-          dummy.updateMatrix();
-          grass.push(dummy.matrix.clone());
-        }
+        // 1 patch per cell, varied size + offset so a row of grass
+        // tiles doesn't look like a polka-dot pattern.
+        const u = hash(x, y, 1);
+        const v = hash(x, y, 2);
+        const r = hash(x, y, 3);
+        const t = hash(x, y, 4);
 
-        // Pebbles. Grass = small chance, stony = guaranteed.
-        const pebbleCount = isStony ? 4 : isGrass ? (hash(x, y, 100) < 0.3 ? 1 : 0) : 0;
-        for (let i = 0; i < pebbleCount && pebbles.length < MAX_PEBBLES; i++) {
-          const u = hash(x, y, i * 11 + 50);
-          const v = hash(x, y, i * 11 + 51);
-          const r = hash(x, y, i * 11 + 52);
-          const tx = cellCx + (u - 0.5) * 0.85;
-          const tz = cellCz + (v - 0.5) * 0.85;
-          const s = 0.06 + r * 0.06;
-          dummy.position.set(tx, baseY + s * 0.4, tz);
-          dummy.rotation.set(r * 0.8, r * 6, r * 0.8);
-          dummy.scale.set(s, s * 0.6, s);
-          dummy.updateMatrix();
-          pebbles.push(dummy.matrix.clone());
-        }
+        const tx = cellCx + (u - 0.5) * 0.4;
+        const tz = cellCz + (v - 0.5) * 0.4;
+        const size = 0.55 + r * 0.45; // 0.55..1.0 cell-widths
+
+        dummy.position.set(tx, baseY, tz);
+        dummy.rotation.set(-Math.PI / 2, 0, t * Math.PI * 2);
+        dummy.scale.set(size, size, 1);
+        dummy.updateMatrix();
+        ms.push(dummy.matrix.clone());
+
+        // Tone: pick light or dark side, then jitter a hair so the
+        // map reads as continuous variation rather than two flavors.
+        const pick = t < 0.5 ? tones[0] : tones[1];
+        const c = new THREE.Color(pick);
+        const jitter = (hash(x, y, 9) - 0.5) * 0.06;
+        c.offsetHSL(0, 0, jitter);
+        cs.push(c);
       }
     }
 
-    return { grassMatrices: grass, pebbleMatrices: pebbles };
+    return { matrices: ms, colors: cs };
   }, [cells, width, height]);
 
-  // Push the precomputed matrices into the instanced mesh. Done in a
-  // layout effect so it runs before paint and the mesh is never seen
-  // at the origin.
   useLayoutEffect(() => {
-    const g = grassRef.current;
-    if (g) {
-      grassMatrices.forEach((m, i) => g.setMatrixAt(i, m));
-      g.count = grassMatrices.length;
-      g.instanceMatrix.needsUpdate = true;
-    }
-    const p = pebbleRef.current;
-    if (p) {
-      pebbleMatrices.forEach((m, i) => p.setMatrixAt(i, m));
-      p.count = pebbleMatrices.length;
-      p.instanceMatrix.needsUpdate = true;
-    }
-  }, [grassMatrices, pebbleMatrices]);
+    const m = decalRef.current;
+    if (!m) return;
+    matrices.forEach((mat, i) => m.setMatrixAt(i, mat));
+    colors.forEach((c, i) => m.setColorAt(i, c));
+    m.count = matrices.length;
+    m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  }, [matrices, colors]);
+
+  if (matrices.length === 0) return null;
 
   return (
-    <group>
-      {grassMatrices.length > 0 && (
-        <instancedMesh
-          ref={grassRef}
-          args={[undefined, undefined, grassMatrices.length]}
-          castShadow={false}
-          receiveShadow
-        >
-          {/* Tall narrow cone reads as a grass blade. 4 segments is
-              enough silhouette without exploding poly count. */}
-          <coneGeometry args={[0.05, 0.2, 4]} />
-          <meshStandardMaterial color="#5d9b41" roughness={1} />
-        </instancedMesh>
-      )}
-
-      {pebbleMatrices.length > 0 && (
-        <instancedMesh
-          ref={pebbleRef}
-          args={[undefined, undefined, pebbleMatrices.length]}
-          castShadow
-          receiveShadow
-        >
-          <icosahedronGeometry args={[1, 0]} />
-          <meshStandardMaterial color="#7a716b" roughness={1} flatShading />
-        </instancedMesh>
-      )}
-    </group>
+    <instancedMesh
+      ref={decalRef}
+      args={[undefined, undefined, matrices.length]}
+      receiveShadow
+    >
+      {/* A circular patch with 12 segments — soft enough silhouette
+          to read as organic ground tone, cheap enough for thousands
+          of instances. */}
+      <circleGeometry args={[0.5, 12]} />
+      <meshStandardMaterial
+        // Per-instance tinting via setColorAt. White base lets the
+        // tint pass through unchanged.
+        color="#ffffff"
+        roughness={1}
+        // Big-deal: transparent + low opacity makes the patch feel
+        // like a tone shift in the underlying ground rather than a
+        // physical layer floating above it.
+        transparent
+        opacity={0.55}
+        // Without polygon offset the decal z-fights with the cube
+        // top face on flat terrain.
+        polygonOffset
+        polygonOffsetFactor={-1}
+        polygonOffsetUnits={-1}
+        depthWrite={false}
+      />
+    </instancedMesh>
   );
 }
