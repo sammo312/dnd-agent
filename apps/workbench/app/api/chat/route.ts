@@ -62,7 +62,21 @@ export async function POST(req: Request) {
     messages: convertToCoreMessages(messages),
     tools: allDmTools,
     maxSteps: 8,
+    onError({ error }) {
+      console.log('[v0] streamText error:', error);
+    },
   });
 
-  return result.toDataStreamResponse();
+  return result.toDataStreamResponse({
+    getErrorMessage: (error: unknown) => {
+      console.log('[v0] toDataStreamResponse error:', error);
+      if (error instanceof Error) return error.message;
+      if (typeof error === 'string') return error;
+      try {
+        return JSON.stringify(error);
+      } catch {
+        return 'Unknown error';
+      }
+    },
+  });
 }
