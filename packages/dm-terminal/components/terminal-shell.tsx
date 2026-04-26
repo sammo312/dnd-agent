@@ -32,6 +32,10 @@ import { ANSI } from "../lib/terminal/ansi";
 import { Picker, type PickerResult } from "../lib/terminal/picker";
 import { formatLinkCard, type LinkSurface } from "../lib/terminal/link-card";
 import { CommandMenu } from "../lib/terminal/command-menu";
+import {
+  createThinkingIndicator,
+  type ThinkingIndicator,
+} from "../lib/terminal/thinking-indicator";
 
 export interface TerminalConfig {
   /** API endpoint for chat. Default: "/api/chat" */
@@ -180,6 +184,16 @@ export function TerminalShell({
   const promptShownRef = useRef(false);
   const pickerRef = useRef<Picker | null>(null);
   const commandMenuRef = useRef<CommandMenu | null>(null);
+  // Animated "thinking…" spinner — shown during the silent gaps
+  // between user-submit and first stream chunk, and between a tool
+  // result and the model deciding what to do next. Both gaps can
+  // run 5-15s when the planner tool fires and used to look like a
+  // hung agent. Lazy-init with a ref so the indicator's timers
+  // outlive React re-renders.
+  const thinkingRef = useRef<ThinkingIndicator | null>(null);
+  if (thinkingRef.current === null) {
+    thinkingRef.current = createThinkingIndicator(termRef);
+  }
 
   const showPrompt = useCallback(() => {
     if (!promptShownRef.current && !pickerRef.current) {
@@ -731,6 +745,12 @@ export function TerminalShell({
   const sendToAI = useCallback(
     (text: string) => {
       isStreamingRef.current = true;
+      // Spinner pops on its own line below the user input. Cleared
+      // automatically when the first text/tool chunk streams in
+      // (see the messages effect) and re-armed after each tool
+      // result so the gap before the model's next decision doesn't
+      // look hung either.
+      thinkingRef.current?.start("thinking");
       append({ role: "user", content: text });
     },
     [append],
@@ -798,6 +818,9 @@ export function TerminalShell({
           // can't reach into it from the client) but its tokens are
           // already orphaned — they won't reach the workspace.
           stop();
+          // Kill the spinner before printing the interrupt notice or
+          // it'll keep redrawing over the message until the next tick.
+          thinkingRef.current?.stop();
           isStreamingRef.current = false;
           toolResultRenderedRef.current.clear();
           term.write(
@@ -953,6 +976,9 @@ export function TerminalShell({
         const newText = part.text.slice(alreadyRendered);
 
         if (newText) {
+          // Real output is about to land — kill the spinner so its
+          // line gets reclaimed before the narration writes.
+          thinkingRef.current?.stop();
           const termText = formatNarration(newText).replace(/\n/g, "\r\n");
           term.write(termText);
           renderedRef.current.set(partId, part.text.length);
@@ -973,12 +999,23 @@ export function TerminalShell({
           (inv.state === "call" || inv.state === "result") &&
           !toolCallRenderedRef.current.has(callKey)
         ) {
+          // Same deal — spinner off so the breadcrumb owns the line.
+          thinkingRef.current?.stop();
           toolCallRenderedRef.current.add(callKey);
           const label = describeToolCall(
             inv.toolName,
             (inv.args ?? {}) as Record<string, unknown>,
           );
           term.write("\r\n" + formatToolCall(label));
+
+          // The planner is server-side and the call→result roundtrip
+          // takes 5-10s while Sonnet generates. Restart the spinner
+          // with a contextual label so the wait reads as activity, not
+          // a hang. Other tools resolve fast (client-side prep tools
+          // run synchronously in onToolCall) so no need to re-arm.
+          if (inv.state === "call" && inv.toolName === "planNarrative") {
+            thinkingRef.current?.start("consulting planner");
+          }
         }
 
         if (
@@ -1016,6 +1053,13 @@ export function TerminalShell({
             );
           }
           // Successful prep-tool results: no extra output (the breadcrumb is enough).
+
+          // Tool just completed — model now goes silent again while it
+          // decides what to do next. Bridge that gap with a spinner so
+          // long auto-mode runs don't show seconds of dead air between
+          // breadcrumbs. The isLoading→false effect below will stop it
+          // when the turn actually wraps up.
+          thinkingRef.current?.start("deciding next step");
         }
       }
     }
@@ -1023,6 +1067,9 @@ export function TerminalShell({
 
   useEffect(() => {
     if (!isLoading && isStreamingRef.current && !pickerRef.current) {
+      // Stream ended cleanly — kill any spinner still ticking from the
+      // last tool result so it doesn't outlive the turn.
+      thinkingRef.current?.stop();
       isStreamingRef.current = false;
       showPrompt();
     }
