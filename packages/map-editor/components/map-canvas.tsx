@@ -40,6 +40,7 @@ interface MapCanvasProps {
   selectedNarrativeBeat: PlacedNarrativeBeat | null
   selectedRegion: string | null
   zoom: number
+  onZoomChange: (zoom: number) => void
   showGrid: boolean
   showRegionOverlay: boolean
   showAssociations: boolean
@@ -72,6 +73,7 @@ export function MapCanvas({
   selectedNarrativeBeat,
   selectedRegion,
   zoom,
+  onZoomChange,
   showGrid,
   showRegionOverlay,
   showAssociations,
@@ -123,15 +125,31 @@ export function MapCanvas({
     }
   }, [])
 
-  // Handle scroll wheel for panning
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    // Scroll to pan (shift+scroll for horizontal)
-    setPanOffset((prev) => ({
-      x: prev.x - (e.shiftKey ? e.deltaY : e.deltaX),
-      y: prev.y - (e.shiftKey ? e.deltaX : e.deltaY),
-    }))
-  }, [])
+  // Cursor-anchored zoom on wheel. The map point under the cursor stays
+  // fixed in screen space across the zoom step, which is what users expect
+  // from a 2D editor (Figma/Photoshop-style). Ctrl/Cmd+wheel falls through
+  // to the browser so OS-level page zoom still works if someone needs it.
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return
+      e.preventDefault()
+      const container = containerRef.current
+      if (!container) return
+      const rect = container.getBoundingClientRect()
+      const cx = e.clientX - rect.left
+      const cy = e.clientY - rect.top
+      const factor = Math.exp(-e.deltaY * 0.0015)
+      const newZoom = Math.max(0.25, Math.min(3, zoom * factor))
+      if (newZoom === zoom) return
+      const ratio = newZoom / zoom
+      setPanOffset((prev) => ({
+        x: cx - (cx - prev.x) * ratio,
+        y: cy - (cy - prev.y) * ratio,
+      }))
+      onZoomChange(newZoom)
+    },
+    [zoom, onZoomChange]
+  )
 
   const cellSize = Math.round(32 * zoom)
 
@@ -345,20 +363,7 @@ export function MapCanvas({
           })
         }
       }}
-      onMouseDown={(e) => {
-        // Middle mouse button starts panning from anywhere
-        if (e.button === 1) {
-          e.preventDefault()
-          setIsPanning(true)
-          setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y })
-        }
-      }}
-      onMouseUp={(e) => {
-        handleMouseUp()
-        if (e.button === 1) {
-          setIsPanning(false)
-        }
-      }}
+      onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
     >
@@ -694,31 +699,13 @@ export function MapCanvas({
         </div>
       </div>
 
-      {/* Tool hints */}
-      <div className="absolute bottom-4 left-4 bg-background/80 backdrop-blur-sm px-3 py-2 rounded-lg text-xs text-muted-foreground border max-w-xs">
-        {activeTool === "pan" && "Click and drag to pan the canvas"}
-        {activeTool === "select" && "Click on cells or elements to select them"}
-        {activeTool === "lasso" && "Click and drag to draw a region selection"}
-        {activeTool === "paint" && selectedTerrain && `Painting: ${selectedTerrain.name}`}
-        {activeTool === "paint" && !selectedTerrain && "Select a terrain type from the left panel"}
-        {activeTool === "poi" && selectedPOI && `Placing: ${selectedPOI.name}`}
-        {activeTool === "poi" && !selectedPOI && "Select a POI type from the left panel"}
-        {isSpacePanning && <span className="text-primary font-medium">Space held - drag to pan</span>}
-      </div>
-
-      {/* Navigation hints */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs text-muted-foreground border flex items-center gap-3">
-        <span>Scroll to pan</span>
-        <span className="text-muted-foreground/50">|</span>
-        <span>Space+drag to pan</span>
-        <span className="text-muted-foreground/50">|</span>
-        <span>Middle-click to pan</span>
-      </div>
-
-      {/* Coordinates display */}
-      <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur-sm px-3 py-2 rounded-lg text-xs font-mono border">
-        {width} x {height} tiles | Zoom: {Math.round(zoom * 100)}%
-      </div>
+      {/* Transient Space-pan indicator. Only renders while the key is
+       * held, so the canvas stays clean when nobody's panning. */}
+      {isSpacePanning && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-background/85 backdrop-blur-sm px-2.5 py-1 rounded-full text-[11px] text-muted-foreground border pointer-events-none">
+          Space held — drag to pan
+        </div>
+      )}
     </div>
   )
 }

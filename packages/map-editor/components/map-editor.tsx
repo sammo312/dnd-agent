@@ -730,49 +730,61 @@ export function MapEditor() {
           onToggleCollapsed={() => setIsLeftCollapsed((c) => !c)}
         />
 
-{/* Canvas - 2D or 3D */}
-  {viewMode === "2d" ? (
-    <MapCanvas
-      width={mapWidth}
-      height={mapHeight}
-      cells={cells}
-      pois={pois}
-      regions={regions}
-      narrativeBeats={narrativeBeats}
-      selectedTerrain={selectedTerrain}
-      selectedPOI={selectedPOI}
-      activeTool={activeTool}
-      onCellClick={handleCellClick}
-      onCellDrag={paintCell}
-      onPOIDrop={handlePOIDrop}
-      onPOIMove={handlePOIMove}
-      onPOISelect={handlePlacedPOISelect}
-      onPOIDelete={handlePOIDelete}
-      onLassoComplete={handleLassoComplete}
-      onNarrativeBeatDrop={handleNarrativeBeatDrop}
-      onNarrativeBeatMove={handleNarrativeBeatMove}
-      onNarrativeBeatSelect={handleNarrativeBeatSelect}
-      selectedPlacedPOI={selectedPlacedPOI}
-      selectedNarrativeBeat={selectedNarrativeBeat}
-      selectedRegion={selectedRegion}
-      zoom={zoom}
-      showGrid={showGrid}
-      showRegionOverlay={showRegionOverlay}
-      showAssociations={showAssociations}
-      showElevation={showElevation}
-      selectedCell={selectedCell}
-      onCellSelect={handleCellSelect}
-    />
-  ) : (
-    <MapViewer3D
-      width={mapWidth}
-      height={mapHeight}
-      cells={cells}
-      pois={pois}
-      regions={regions}
-      narrativeBeats={narrativeBeats}
-    />
-  )}
+        {/* Canvas — both 2D and 3D stay mounted so toggling the view doesn't
+         * blow away the 2D pan/zoom or the R3F scene's OrbitControls camera.
+         * The hidden surface gets `display:none` (cheaper than unmounting).
+         * `pointer-events-none` on the inactive one belt-and-suspenders any
+         * stray events that would otherwise hit the off-screen layer. */}
+        <div
+          className="flex-1 relative flex"
+          style={{ display: viewMode === "2d" ? "flex" : "none" }}
+        >
+          <MapCanvas
+            width={mapWidth}
+            height={mapHeight}
+            cells={cells}
+            pois={pois}
+            regions={regions}
+            narrativeBeats={narrativeBeats}
+            selectedTerrain={selectedTerrain}
+            selectedPOI={selectedPOI}
+            activeTool={activeTool}
+            onCellClick={handleCellClick}
+            onCellDrag={paintCell}
+            onPOIDrop={handlePOIDrop}
+            onPOIMove={handlePOIMove}
+            onPOISelect={handlePlacedPOISelect}
+            onPOIDelete={handlePOIDelete}
+            onLassoComplete={handleLassoComplete}
+            onNarrativeBeatDrop={handleNarrativeBeatDrop}
+            onNarrativeBeatMove={handleNarrativeBeatMove}
+            onNarrativeBeatSelect={handleNarrativeBeatSelect}
+            selectedPlacedPOI={selectedPlacedPOI}
+            selectedNarrativeBeat={selectedNarrativeBeat}
+            selectedRegion={selectedRegion}
+            zoom={zoom}
+            onZoomChange={setZoom}
+            showGrid={showGrid}
+            showRegionOverlay={showRegionOverlay}
+            showAssociations={showAssociations}
+            showElevation={showElevation}
+            selectedCell={selectedCell}
+            onCellSelect={handleCellSelect}
+          />
+        </div>
+        <div
+          className="flex-1 relative flex"
+          style={{ display: viewMode === "3d" ? "flex" : "none" }}
+        >
+          <MapViewer3D
+            width={mapWidth}
+            height={mapHeight}
+            cells={cells}
+            pois={pois}
+            regions={regions}
+            narrativeBeats={narrativeBeats}
+          />
+        </div>
 
         {/* Right Panel — only shown when something is selected */}
         {(selectedPlacedPOI || selectedRegionData || selectedNarrativeBeat || selectedCell) && (
