@@ -205,5 +205,3 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
     );
   }
 );
-  }
-);
