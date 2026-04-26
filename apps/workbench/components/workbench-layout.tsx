@@ -11,6 +11,7 @@ import { NarrativePanel } from "./panels/narrative-panel";
 import { DmTerminalPanel } from "./panels/dm-terminal-panel";
 import { CommandPalette } from "./command-palette";
 import { ExportButton } from "./export-button";
+import { StaticTab } from "./static-tab";
 import { Toaster } from "@dnd-agent/ui/components/ui/sonner";
 import { useWorkbenchStore } from "@/lib/workbench-store";
 import { useWorkbenchShortcuts } from "@/hooks/use-workbench-shortcuts";
@@ -19,6 +20,10 @@ const components: Record<string, React.FC<IDockviewPanelProps>> = {
   mapEditor: MapEditorPanel,
   narrativeEditor: NarrativePanel,
   dmTerminal: DmTerminalPanel,
+};
+
+const tabComponents = {
+  static: StaticTab,
 };
 
 export function WorkbenchLayout() {
@@ -38,18 +43,21 @@ export function WorkbenchLayout() {
       const terminalPanel = api.addPanel({
         id: "dm-terminal",
         component: "dmTerminal",
+        tabComponent: "static",
         title: "DM Terminal",
       });
 
       api.addPanel({
         id: "map-editor",
         component: "mapEditor",
+        tabComponent: "static",
         title: "Map Editor",
       });
 
       api.addPanel({
         id: "narrative-editor",
         component: "narrativeEditor",
+        tabComponent: "static",
         title: "Story Boarder",
       });
 
@@ -71,6 +79,7 @@ export function WorkbenchLayout() {
         className="dockview-theme-abyss"
         onReady={onReady}
         components={components}
+        tabComponents={tabComponents}
       />
       <ExportButton />
       <CommandPalette />
