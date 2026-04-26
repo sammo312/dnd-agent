@@ -7,7 +7,7 @@ import * as THREE from "three"
 import { EntityCapsule } from "../entities/entity-capsule"
 
 // ──────────────────────────────────────────────────────
-// DemoPlayerScene: the Living Stage player view.
+// DemoPlayerScene: the player app's 3D scene view.
 //
 // Receives GameState from parent via props. Renders:
 //   - Ground plane (simple green terrain)

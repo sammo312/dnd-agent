@@ -11,7 +11,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design System — The Living Stage
+ * Design System
  * Retro-futuristic / warm terminal. Dark-only. Sharp corners.
  * See DESIGN.md for the full token rationale. Mirrors app/globals.css.
  */

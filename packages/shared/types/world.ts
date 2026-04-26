@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────────────
-// World state types for the Living Stage sync server.
+// World state types for the player app's sync server.
 //
 // Data flow:
 //   DM/Player → POST /chat → sync server → Claude API

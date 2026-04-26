@@ -11,6 +11,7 @@ import { NarrativePanel } from "./panels/narrative-panel";
 import { DmTerminalPanel } from "./panels/dm-terminal-panel";
 import { CommandPalette } from "./command-palette";
 import { ExportButton } from "./export-button";
+import { OpenInPlayerButton } from "./open-in-player-button";
 import { NarrativeBridge } from "./narrative-bridge";
 import { StaticTab } from "./static-tab";
 import { Toaster } from "@dnd-agent/ui/components/sonner";
@@ -83,7 +84,11 @@ export function WorkbenchLayout() {
         tabComponents={tabComponents}
       />
       <NarrativeBridge />
-      <ExportButton />
+      {/* Top-right rail: project-level verbs, anchored above the dockview tabs. */}
+      <div className="absolute right-3 top-1.5 z-50 flex items-center gap-1.5">
+        <OpenInPlayerButton />
+        <ExportButton />
+      </div>
       <CommandPalette />
       <Toaster position="bottom-right" />
     </div>
