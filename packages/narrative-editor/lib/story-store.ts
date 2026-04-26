@@ -39,87 +39,9 @@ interface StoryStore {
   importFromJson: (data: ExportedChapter[]) => void;
 }
 
-const initialNodes: StoryNode[] = [
-  {
-    id: 'section_intro',
-    type: 'section',
-    position: { x: 100, y: 100 },
-    data: {
-      id: 'awakening',
-      name: 'awakening',
-      title: 'Awakening',
-      start_id: 'approach_club',
-      background: 'res://chapter_bg.png',
-      music: 'res://chapter_theme.mp3',
-      gltf: 'res://chapter_mask.gltf',
-    } as Section,
-  },
-  {
-    id: 'approach_club',
-    type: 'dialogue',
-    position: { x: 450, y: 80 },
-    data: {
-      id: 'approach_club',
-      speaker: 'Narrator',
-      gltf: 'res://mask-of-sleuth.gltf',
-      dialogue: [
-        { text: 'St. Petersburg, 18—something.', speed: 60 },
-        { text: ' Snow chews at the street.', speed: 70 },
-        { text: ' ', speed: 400 },
-        { text: 'Ahead,', speed: 80 },
-        { text: '...', speed: 40 },
-        { text: '', speed: 400 },
-        { text: 'a nightclub.', speed: 110, style: { color: '#ff5555' } },
-      ],
-      choices: [
-        { label: 'Turn away.', id: 'try_leave' },
-        { label: 'Watch the door.', id: 'linger' },
-      ],
-    } as DialogueNode,
-  },
-  {
-    id: 'try_leave',
-    type: 'dialogue',
-    position: { x: 800, y: 0 },
-    data: {
-      id: 'try_leave',
-      speaker: 'Narrator',
-      dialogue: [
-        { text: 'You turn.', speed: 90 },
-        { text: ' Your stomach clenches.', speed: 70 },
-        { text: ' ', speed: 400 },
-        { text: 'The door bursts open.', speed: 120, style: { color: '#ff5555' } },
-      ],
-      choices: [
-        { label: 'Step inside.', id: 'inside_club' },
-      ],
-    } as DialogueNode,
-  },
-  {
-    id: 'linger',
-    type: 'dialogue',
-    position: { x: 800, y: 200 },
-    data: {
-      id: 'linger',
-      speaker: 'Narrator',
-      dialogue: [
-        { text: 'You hesitate.', speed: 90 },
-        { text: ' Counting breaths.', speed: 80 },
-        { text: ' ', speed: 400 },
-        { text: 'You stumble forward.', speed: 120, style: { color: '#ff5555' } },
-      ],
-      choices: [
-        { label: 'Go with it.', id: 'inside_club' },
-      ],
-    } as DialogueNode,
-  },
-];
-
-const initialConnections: Connection[] = [
-  { id: 'conn_1', from: 'section_intro', to: 'approach_club', label: 'starts' },
-  { id: 'conn_2', from: 'approach_club', to: 'try_leave', label: 'Turn away' },
-  { id: 'conn_3', from: 'approach_club', to: 'linger', label: 'Watch the door' },
-];
+// Empty by default — the DM prep assistant fills this in via tool calls.
+const initialNodes: StoryNode[] = [];
+const initialConnections: Connection[] = [];
 
 export const useStoryStore = create<StoryStore>((set, get) => ({
   nodes: initialNodes,

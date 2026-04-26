@@ -13,10 +13,14 @@ import {
   type PlacedNarrativeBeat,
   type NarrativeAssociation,
   terrainElevations,
+  naturalTerrains,
+  humanMadeTerrains,
+  poiCategories,
 } from "../lib/terrain-types"
 import { generatePOIName, generateRegionName } from "../lib/name-generator"
 import { useHistory } from "../hooks/use-history"
 import { useHotkeys } from "../hooks/use-hotkeys"
+import { useMapStore } from "../lib/map-store"
 import { useContainerSize } from "@dnd-agent/ui/hooks/use-container-size"
 import { EditorToolbar, type EditorTool } from "./editor-toolbar"
   import { LeftPanel } from "./left-panel"
@@ -557,6 +561,89 @@ export function MapEditor() {
     reader.readAsText(file)
     e.target.value = ""
   }
+
+  // ─────────────────────────────────────────────
+  // DM prep agent integration: consume pending mutations
+  // and publish a snapshot of the current map for the agent.
+  // ─────────────────────────────────────────────
+  const pendingMutations = useMapStore((s) => s.pendingMutations)
+  const consumeMutations = useMapStore((s) => s.consumeMutations)
+  const publishSnapshot = useMapStore((s) => s.publishSnapshot)
+
+  useEffect(() => {
+    if (pendingMutations.length === 0) return
+
+    const allTerrains = [...naturalTerrains, ...humanMadeTerrains]
+    const findTerrain = (id: string) => allTerrains.find((t) => t.id === id)
+    const allPOIItems = poiCategories.flatMap((c) => c.items as readonly POIItem[])
+    const findPOI = (id: string) => allPOIItems.find((p) => p.id === id)
+
+    for (const m of pendingMutations) {
+      if (m.type === "set_dimensions") {
+        if (m.reset) {
+          setMapWidth(m.width)
+          setMapHeight(m.height)
+          resetHistory(createInitialState(m.width, m.height))
+        } else {
+          handleResizeMap(m.width, m.height)
+        }
+      } else if (m.type === "paint_rect") {
+        const t = findTerrain(m.terrain)
+        if (!t) continue
+        setEditorState((prev) => {
+          const newCells = prev.cells.map((row) => row.map((cell) => ({ ...cell })))
+          const w = newCells[0]?.length ?? 0
+          const h = newCells.length
+          const x1 = Math.max(0, Math.min(m.x1, m.x2))
+          const x2 = Math.min(w - 1, Math.max(m.x1, m.x2))
+          const y1 = Math.max(0, Math.min(m.y1, m.y2))
+          const y2 = Math.min(h - 1, Math.max(m.y1, m.y2))
+          for (let y = y1; y <= y2; y++) {
+            for (let x = x1; x <= x2; x++) {
+              if (newCells[y]?.[x]) {
+                newCells[y][x].terrain = t.id
+                newCells[y][x].elevation = t.baseElevation
+                newCells[y][x].elevationOffset = 0
+              }
+            }
+          }
+          return { ...prev, cells: newCells }
+        })
+      } else if (m.type === "add_poi") {
+        const p = findPOI(m.poiType)
+        if (!p) continue
+        setEditorState((prev) => {
+          const w = prev.cells[0]?.length ?? 0
+          const h = prev.cells.length
+          const newPOI: PlacedPOI = {
+            id: `poi-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+            type: p.id,
+            name: m.name,
+            icon: p.icon,
+            x: Math.max(0, Math.min(m.x, w - p.size.w)),
+            y: Math.max(0, Math.min(m.y, h - p.size.h)),
+            size: p.size,
+          }
+          return { ...prev, pois: [...prev.pois, newPOI] }
+        })
+      } else if (m.type === "clear") {
+        resetHistory(createInitialState(mapWidth, mapHeight))
+      }
+    }
+
+    consumeMutations()
+    // We intentionally only re-run when the queue itself changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingMutations])
+
+  useEffect(() => {
+    publishSnapshot({
+      width: mapWidth,
+      height: mapHeight,
+      poiCount: pois.length,
+      poiSummary: pois.map((p) => ({ type: p.type, name: p.name, x: p.x, y: p.y })),
+    })
+  }, [mapWidth, mapHeight, pois, publishSnapshot])
 
   const selectedRegionData = selectedRegion ? regions.find((r) => r.id === selectedRegion) || null : null
 

@@ -1,15 +1,7 @@
 import { ANSI } from './ansi';
 
 export const BANNER = `
-${ANSI.narration}${ANSI.bold}
-  ██████╗ ███╗   ███╗     ██████╗██╗     ██╗
-  ██╔══██╗████╗ ████║    ██╔════╝██║     ██║
-  ██║  ██║██╔████╔██║    ██║     ██║     ██║
-  ██║  ██║██║╚██╔╝██║    ██║     ██║     ██║
-  ██████╔╝██║ ╚═╝ ██║    ╚██████╗███████╗██║
-  ╚═════╝ ╚═╝     ╚═╝     ╚═════╝╚══════╝╚═╝
-${ANSI.reset}
-${ANSI.dimText}  Dungeon Master CLI — AI-Powered Adventure${ANSI.reset}
+${ANSI.narration}${ANSI.bold}  dm.prep${ANSI.reset}  ${ANSI.dimText}// agent for designing scenes, characters, and maps${ANSI.reset}
 ${ANSI.dimText}  ─────────────────────────────────────────${ANSI.reset}
 `;
 

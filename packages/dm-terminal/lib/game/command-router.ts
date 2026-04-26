@@ -24,24 +24,16 @@ export function routeCommand(input: string): CommandResult | null {
 
     case '/help':
       return {
-        output: `\r\n${ANSI.system}Available Commands:${ANSI.reset}\r\n` +
-          `${ANSI.dimText}  /roll <dice>    Roll dice (e.g., /roll 2d6+3)${ANSI.reset}\r\n` +
-          `${ANSI.dimText}  /help           Show this help message${ANSI.reset}\r\n` +
-          `${ANSI.dimText}  /clear          Clear the terminal${ANSI.reset}\r\n` +
-          `${ANSI.dimText}  /look           Describe your surroundings${ANSI.reset}\r\n` +
-          `${ANSI.dimText}${ANSI.reset}\r\n` +
-          `${ANSI.dimText}  Or just type naturally to talk to the DM!${ANSI.reset}\r\n`,
+        output: `\r\n${ANSI.system}Commands${ANSI.reset}\r\n` +
+          `${ANSI.dimText}  /roll <dice>   Roll dice (e.g. /roll 2d6+3)${ANSI.reset}\r\n` +
+          `${ANSI.dimText}  /clear         Clear the terminal${ANSI.reset}\r\n` +
+          `${ANSI.dimText}  /help          Show this${ANSI.reset}\r\n` +
+          `\r\n` +
+          `${ANSI.dimText}Or just describe a scene you want to run and the DM prep assistant will sketch it into the Story Boarder and Map Editor.${ANSI.reset}\r\n`,
       };
 
     case '/clear':
       return { output: '\x1b[2J\x1b[H' };
-
-    case '/look':
-      return {
-        output: '',
-        sendToAI: true,
-        aiMessage: 'I look around carefully. Describe my surroundings in detail.',
-      };
 
     default:
       if (cmd.startsWith('/')) {
