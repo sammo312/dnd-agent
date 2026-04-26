@@ -583,7 +583,25 @@ export function TerminalShell({
       }
     },
     onError(error) {
-      termRef.current?.write(formatError(error.message) + "\r\n");
+      // Tool-args parse failures happen occasionally when the model emits
+      // malformed JSON for a tool call (notably Anthropic sometimes leaks
+      // its `<parameter name="...">` XML wrapper into the JSON arg stream).
+      // The raw multi-line stack trace is useless to the DM, so render a
+      // single-line recovery message instead and log the full error to the
+      // console for diagnostics.
+      const msg = error.message ?? String(error);
+      const isToolArgsError =
+        /Invalid arguments for tool|JSON parsing failed|tool input did not match/i.test(
+          msg,
+        );
+      if (isToolArgsError) {
+        console.log("[v0] tool args parse error:", msg);
+        termRef.current?.write(
+          `${ANSI.dimText}The agent fumbled that tool call — try asking again.${ANSI.reset}\r\n`,
+        );
+      } else {
+        termRef.current?.write(formatError(msg) + "\r\n");
+      }
       showPrompt();
     },
   });
