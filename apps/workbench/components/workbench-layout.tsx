@@ -10,7 +10,6 @@ import { MapEditorPanel } from "./panels/map-editor-panel";
 import { NarrativePanel } from "./panels/narrative-panel";
 import { DmTerminalPanel } from "./panels/dm-terminal-panel";
 import { PanelHeaderActions } from "./panel-header-actions";
-import { CommandRail } from "./command-rail";
 import { CommandPalette } from "./command-palette";
 import { useWorkbenchStore } from "@/lib/workbench-store";
 import { useWorkbenchShortcuts } from "@/hooks/use-workbench-shortcuts";
@@ -30,40 +29,29 @@ export function WorkbenchLayout() {
   const onReady = useCallback(
     (event: DockviewReadyEvent) => {
       const api = event.api;
-
-      // Store the API reference for use across components
       setDockviewApi(api);
 
-      // Add map editor (left, takes most space)
-      const mapPanel = api.addPanel({
+      // All three surfaces live as tabs in a single dockview group.
+      // Adding without a `position` puts every subsequent panel into the same
+      // group as the previous one. The first-added panel is the active tab,
+      // so the terminal opens by default.
+      api.addPanel({
+        id: "dm-terminal",
+        component: "dmTerminal",
+        title: "DM Terminal",
+      });
+
+      api.addPanel({
         id: "map-editor",
         component: "mapEditor",
         title: "Map Editor",
       });
 
-      // Add narrative editor to the right of map editor
-      const narrativePanel = api.addPanel({
+      api.addPanel({
         id: "narrative-editor",
         component: "narrativeEditor",
         title: "Story Boarder",
-        position: { referencePanel: mapPanel, direction: "right" },
       });
-
-      // Add DM terminal at the bottom spanning full width
-      api.addPanel({
-        id: "dm-terminal",
-        component: "dmTerminal",
-        title: "DM Terminal",
-        position: { referencePanel: mapPanel, direction: "below" },
-      });
-
-      // Set initial sizes: map 50%, narrative 50% horizontally; terminal 30% vertically
-      try {
-        mapPanel.group?.api.setSize({ width: 600 });
-        narrativePanel.group?.api.setSize({ width: 500 });
-      } catch {
-        // sizing may fail if layout not ready yet
-      }
 
       // Sync state when Dockview's built-in X button removes a panel
       api.onDidRemovePanel((panel) => {
@@ -74,16 +62,13 @@ export function WorkbenchLayout() {
   );
 
   return (
-    <div className="h-screen w-screen flex">
-      <CommandRail />
-      <div className="flex-1 min-w-0">
-        <DockviewReact
-          className="dockview-theme-abyss"
-          onReady={onReady}
-          components={components}
-          rightHeaderActionsComponent={PanelHeaderActions}
-        />
-      </div>
+    <div className="h-screen w-screen">
+      <DockviewReact
+        className="dockview-theme-abyss"
+        onReady={onReady}
+        components={components}
+        rightHeaderActionsComponent={PanelHeaderActions}
+      />
       <CommandPalette />
     </div>
   );
