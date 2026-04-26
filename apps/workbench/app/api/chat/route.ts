@@ -32,9 +32,13 @@ export async function POST(req: Request) {
   }: { messages: Message[]; workspace?: WorkspaceSnapshot } = await req.json();
 
   const result = streamText({
-    // Haiku 4.5 has much higher TPM limits than Sonnet on the gateway
-    // and is plenty capable for tool-orchestration / scene-prep work.
-    model: anthropic("claude-haiku-4-5"),
+    // Haiku 3.5 has a substantially higher TPM ceiling than Haiku 4.5
+    // on the AI Gateway's default tier — easily 3-4x — and is still
+    // strong at tool orchestration / scene-prep work, which is most of
+    // what the DM agent does. Bumped down here after hitting 429s on
+    // 4.5 with realistic workspace sizes. If TPM stops being the
+    // bottleneck (paid tier, smaller prompts), reconsider 4.5.
+    model: anthropic("claude-3-5-haiku-20241022"),
     system: buildSystemPrompt(workspace),
     messages: convertToCoreMessages(messages),
     tools: dmTools,
