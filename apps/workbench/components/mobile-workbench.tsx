@@ -46,17 +46,26 @@ const TABS: ReadonlyArray<{
 ];
 
 /**
- * Mobile-only welcome blurb shown in place of the castle banner. The
- * banner is ~80 columns wide and looks like garbage at phone widths, so
- * we drop it entirely below the breakpoint and replace the welcome with
- * a compact tip pointing to the bottom tab bar.
+ * Mobile-only welcome shown in place of the castle banner. The banner
+ * is ~50 columns wide and still wraps at phone widths, so we drop it
+ * and substitute a tighter title + the same concrete example prompt
+ * the desktop welcome uses, plus a one-liner pointing at the bottom
+ * tab bar (which is the part of the layout that's mobile-specific).
  */
 function mobileWelcomeMessage(): string {
   return (
-    `\r\n${ANSI.amber}DM Workbench${ANSI.reset}\r\n` +
-    `${ANSI.dimText}  Tap Map / Story below to switch surfaces.${ANSI.reset}\r\n` +
+    `\r\n${ANSI.amber}${ANSI.bold}DM WORKBENCH${ANSI.reset}\r\n` +
+    `${ANSI.dimText}AI scene prep for tabletop RPGs${ANSI.reset}\r\n` +
+    `\r\n` +
+    `${ANSI.text}The agent designs a playable scene — map,${ANSI.reset}\r\n` +
+    `${ANSI.text}NPCs, dialogue — from one line.${ANSI.reset}\r\n` +
+    `\r\n` +
+    `${ANSI.dimText}Try this:${ANSI.reset}\r\n` +
+    `${ANSI.amber}  ›${ANSI.reset} ${ANSI.italic}${ANSI.text}build me a haunted village${ANSI.reset}\r\n` +
+    `\r\n` +
+    `${ANSI.dimText}Tap Map / Story below to view those surfaces.${ANSI.reset}\r\n` +
     `${ANSI.dimText}  /auto    let the agent drive${ANSI.reset}\r\n` +
-    `${ANSI.dimText}  /export  download project JSON${ANSI.reset}\r\n` +
+    `${ANSI.dimText}  /help    all commands${ANSI.reset}\r\n` +
     `\r\n`
   );
 }

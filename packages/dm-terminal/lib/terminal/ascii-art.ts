@@ -1,32 +1,26 @@
 import { ANSI } from './ansi';
 
 /**
- * Castle banner. Lines must be joined with explicit `\r\n` because
- * xterm's `\n` does not return the cursor to column 0 — without the `\r`,
- * each ASCII row starts wherever the previous row ended.
+ * Compact castle silhouette — keeps the CRT-amber tabletop identity but
+ * a third the visual weight of the original 18-line piece. Sized to ~50
+ * cols so it fits in a default 80-col terminal alongside the title bar
+ * without wrapping in a typical workbench panel.
  *
- * The art is ~80 columns wide. In a narrow panel it will wrap; the
- * terminal user can drag the dockview splitter to give it room.
+ * Lines must be joined with explicit `\r\n` because xterm's `\n` does
+ * not return the cursor to column 0 — without the `\r`, each ASCII row
+ * starts wherever the previous row ended.
  */
 const CASTLE_LINES = [
-  "                                  |>>>",
-  "                                  |",
-  "                    |>>>      _  _|_  _         |>>>",
-  "                    |        |;| |;| |;|        |",
-  "                _  _|_  _    \\.    .  /    _  _|_  _",
-  "               |;|_|;|_|;|    \\:. ,  /    |;|_|;|_|;|",
-  "               \\..      /    ||;   . |    \\..      /",
-  "                \\.  ,  /     ||:  .  |     \\:  .  /",
-  "                 ||:   |_   _ ||_ . _ | _   _||:   |",
-  "                 ||:  .|||_|;|_|;|_|;|_|;|_|;||:.  |",
-  "                 ||:   ||.    .     .      . ||:  .|",
-  "                 ||: . || .     . .   .  ,   ||:   |       \\,/",
-  "                 ||:   ||:  ,  _______   .   ||: , |            /`\\",
-  "                 ||:   || .   /+++++++\\    . ||:   |",
-  "                 ||:   ||.    |+++++++| .    ||: . |",
-  "              __ ||: . ||: ,  |+++++++|.  . _||_   |",
-  "     ____--`~    '--~~__|.    |+++++++|----~    ~`---,              ___",
-  "-~--~                   ~---__|,--~'                  ~~----_____-~'   `~----~~",
+  "                       |>>>",
+  "                    _____|_____",
+  "                   |;|_|_|_|;|",
+  "               _    \\   .   /    _",
+  "              |;|    |  ___  |    |;|",
+  "              |;|    | |+++| |    |;|",
+  "              |_|____| |+++| |____|_|",
+  "              |      | |+++| |      |",
+  "              |______|_|+++|_|______|",
+  "               ~~~~~~~~~~~~~~~~~~~~~~",
 ];
 
 export const BANNER =
