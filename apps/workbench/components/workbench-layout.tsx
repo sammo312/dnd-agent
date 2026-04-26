@@ -6,6 +6,7 @@ import {
   type DockviewReadyEvent,
   type IDockviewPanelProps,
 } from "dockview-react";
+import { useIsMobile } from "@dnd-agent/ui/hooks/use-mobile";
 import { MapEditorPanel } from "./panels/map-editor-panel";
 import { NarrativePanel } from "./panels/narrative-panel";
 import { DmTerminalPanel } from "./panels/dm-terminal-panel";
@@ -14,6 +15,7 @@ import { ExportButton } from "./export-button";
 import { OpenInPlayerButton } from "./open-in-player-button";
 import { NarrativeBridge } from "./narrative-bridge";
 import { StaticTab } from "./static-tab";
+import { MobileWorkbench } from "./mobile-workbench";
 import { Toaster } from "@dnd-agent/ui/components/sonner";
 import { useWorkbenchStore } from "@/lib/workbench-store";
 import { useWorkbenchShortcuts } from "@/hooks/use-workbench-shortcuts";
@@ -31,7 +33,11 @@ const tabComponents = {
 export function WorkbenchLayout() {
   const setDockviewApi = useWorkbenchStore((s) => s.setDockviewApi);
   const markPanelClosed = useWorkbenchStore((s) => s.markPanelClosed);
+  const isMobile = useIsMobile();
 
+  // All hooks must run before any early return — `useIsMobile` flips on
+  // resize across the breakpoint, and conditionally calling hooks below
+  // would crash react with "rendered fewer hooks than expected".
   useWorkbenchShortcuts();
 
   const onReady = useCallback(
@@ -74,6 +80,14 @@ export function WorkbenchLayout() {
     },
     [setDockviewApi, markPanelClosed]
   );
+
+  // Below 768px, dockview's tab/drag chrome is unusable: tab targets
+  // shrink to ~30px, the splitter handles are invisible on touch, and
+  // the three panels stacked horizontally have no room to breathe. Swap
+  // in a purpose-built mobile shell with a bottom tab bar instead.
+  if (isMobile) {
+    return <MobileWorkbench />;
+  }
 
   return (
     <div className="relative h-screen w-screen">

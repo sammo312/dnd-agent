@@ -41,7 +41,7 @@ export function OpenInPlayerButton() {
               aria-label="Open in player (player URL not configured)"
             >
               <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-              <span>Open in player</span>
+              <span className="hidden sm:inline">Open in player</span>
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="end">
@@ -67,7 +67,8 @@ export function OpenInPlayerButton() {
       aria-label="Open project in player"
     >
       <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-      <span>Open in player</span>
+      {/* Same compaction as ExportButton — icon-only on mobile widths. */}
+      <span className="hidden sm:inline">Open in player</span>
     </a>
   );
 }
