@@ -33,9 +33,8 @@ export function WorkbenchLayout() {
 
       // All three surfaces live as tabs in a single dockview group.
       // Adding without a `position` puts every subsequent panel into the same
-      // group as the previous one. The first-added panel is the active tab,
-      // so the terminal opens by default.
-      api.addPanel({
+      // group as the previous one.
+      const terminalPanel = api.addPanel({
         id: "dm-terminal",
         component: "dmTerminal",
         title: "DM Terminal",
@@ -52,6 +51,10 @@ export function WorkbenchLayout() {
         component: "narrativeEditor",
         title: "Story Boarder",
       });
+
+      // Dockview activates the last-added panel by default; explicitly focus
+      // the terminal so it's the active tab on initial load.
+      terminalPanel.api.setActive();
 
       // Sync state when Dockview's built-in X button removes a panel
       api.onDidRemovePanel((panel) => {
