@@ -11,6 +11,7 @@ import { NarrativePanel } from "./panels/narrative-panel";
 import { DmTerminalPanel } from "./panels/dm-terminal-panel";
 import { CommandPalette } from "./command-palette";
 import { ExportButton } from "./export-button";
+import { NarrativeBridge } from "./narrative-bridge";
 import { StaticTab } from "./static-tab";
 import { Toaster } from "@dnd-agent/ui/components/ui/sonner";
 import { useWorkbenchStore } from "@/lib/workbench-store";
@@ -81,6 +82,7 @@ export function WorkbenchLayout() {
         components={components}
         tabComponents={tabComponents}
       />
+      <NarrativeBridge />
       <ExportButton />
       <CommandPalette />
       <Toaster position="bottom-right" />

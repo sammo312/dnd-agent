@@ -1,6 +1,29 @@
 import { create } from "zustand";
 
 /**
+ * Live schema published by the narrative editor for the map editor to
+ * consume (story-association dropdowns, draggable section/node lists).
+ *
+ * Shape mirrors the existing `NarrativeSchema` exported chapter format
+ * so the map editor doesn't need to know how the story is authored —
+ * just keyed by section name with a list of nodes.
+ */
+export interface SharedNarrativeSchema {
+  [sectionName: string]: {
+    nodes: Array<{
+      id: string;
+      speaker: string;
+      dialogue: { text: string }[];
+      gltf?: string;
+      choices?: { label: string; id: string }[];
+    }>;
+    background?: string;
+    music?: string;
+    gltf?: string;
+  };
+}
+
+/**
  * Cross-package bridge for DM-driven map mutations.
  *
  * The MapEditor component remains the source of truth for the
@@ -133,6 +156,13 @@ interface MapStore {
   /** Full snapshot used by the project export pipeline. */
   exportSnapshot: MapExportSnapshot | null;
   publishExportSnapshot: (snap: MapExportSnapshot) => void;
+
+  /**
+   * Live narrative schema fed by the story boarder. The map editor
+   * reads this to populate its Story tab and POI association dropdowns.
+   */
+  narrativeSchema: SharedNarrativeSchema | null;
+  publishNarrativeSchema: (schema: SharedNarrativeSchema | null) => void;
 }
 
 export const useMapStore = create<MapStore>((set) => ({
@@ -146,4 +176,7 @@ export const useMapStore = create<MapStore>((set) => ({
 
   exportSnapshot: null,
   publishExportSnapshot: (exportSnapshot) => set({ exportSnapshot }),
+
+  narrativeSchema: null,
+  publishNarrativeSchema: (narrativeSchema) => set({ narrativeSchema }),
 }));

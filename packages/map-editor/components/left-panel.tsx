@@ -46,7 +46,6 @@ import {
   RefreshCw,
   BookOpen,
   MessageSquare,
-  Upload,
   GripVertical,
   Play,
   Paintbrush,
@@ -85,7 +84,6 @@ interface LeftPanelProps {
   onBrushSizeChange: (size: number) => void
   // Narrative props
   narrativeSchema: NarrativeSchema | null
-  onImportNarrative: (schema: NarrativeSchema) => void
   placedBeats: PlacedNarrativeBeat[]
   selectedBeat: PlacedNarrativeBeat | null
   onSelectBeat: (beat: PlacedNarrativeBeat | null) => void
@@ -115,7 +113,6 @@ export function LeftPanel({
   brushSize,
   onBrushSizeChange,
   narrativeSchema,
-  onImportNarrative,
   placedBeats,
   selectedBeat,
   onSelectBeat,
@@ -208,31 +205,6 @@ export function LeftPanel({
       onRenameBeat(id, editName.trim())
     }
     setEditingBeat(null)
-  }
-
-  const handleNarrativeImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string)
-        let schema: NarrativeSchema = {}
-        if (Array.isArray(data)) {
-          for (const item of data) {
-            Object.assign(schema, item)
-          }
-        } else {
-          schema = data
-        }
-        onImportNarrative(schema)
-      } catch (err) {
-        console.error("Failed to import narrative schema:", err)
-      }
-    }
-    reader.readAsText(file)
-    e.target.value = ""
   }
 
   const formatSectionName = (name: string): string => {
@@ -777,27 +749,11 @@ export function LeftPanel({
         {/* Narrative Tab */}
         {activeTab === "narrative" && (
           <div className="space-y-3">
-            {/* Import Button */}
-            <label className="w-full">
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleNarrativeImport}
-                className="hidden"
-              />
-              <Button variant="outline" className="w-full gap-2 bg-transparent" asChild>
-                <span>
-                  <Upload className="h-4 w-4" />
-                  Import Narrative
-                </span>
-              </Button>
-            </label>
-
-            {!narrativeSchema ? (
+            {!narrativeSchema || Object.keys(narrativeSchema).length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No narrative loaded</p>
-                <p className="text-xs">Import a JSON schema</p>
+                <p className="text-sm">No story content yet</p>
+                <p className="text-xs">Add sections in the Story Boarder</p>
               </div>
             ) : (
               <div className="space-y-2">
