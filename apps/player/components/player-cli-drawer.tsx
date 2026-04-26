@@ -9,9 +9,11 @@ import {
   DrawerTrigger,
 } from "@dnd-agent/ui/components/drawer";
 import { PlayerTerminalShell } from "@dnd-agent/player-terminal";
+import { useTouchDevice } from "@/lib/input/use-touch-device";
 
 export default function PlayerCliDrawer() {
   const [open, setOpen] = useState(false);
+  const isTouch = useTouchDevice();
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -57,7 +59,16 @@ export default function PlayerCliDrawer() {
     <Drawer open={open} onOpenChange={handleOpenChange}>
       <DrawerTrigger asChild>
         <button
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-cyan-700/90 text-white shadow-lg backdrop-blur-sm transition-all hover:bg-cyan-600 hover:scale-105 active:scale-95"
+          className="fixed right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-700/90 text-white shadow-lg backdrop-blur-sm transition-all hover:bg-cyan-600 hover:scale-105 active:scale-95 sm:right-6 sm:h-14 sm:w-14"
+          style={{
+            // Keep clear of the bottom-edge joystick on mobile by
+            // anchoring to the top-right when there's a touch UI
+            // already at the bottom; otherwise stay bottom-right as
+            // the desktop affordance.
+            top: isTouch ? "calc(env(safe-area-inset-top, 0px) + 64px)" : undefined,
+            bottom: isTouch ? undefined : "1.5rem",
+            touchAction: "manipulation",
+          }}
           aria-label="Open Player Companion"
         >
           {/* Terminal/chat icon */}
@@ -81,13 +92,15 @@ export default function PlayerCliDrawer() {
         <DrawerHeader className="py-2 px-4">
           <DrawerTitle className="text-sm text-cyan-400/80 font-mono">
             Player Companion
-            <span className="ml-2 text-xs text-cyan-700">
-              press{" "}
-              <kbd className="rounded border border-cyan-800 px-1 py-0.5 text-[10px]">
-                `
-              </kbd>{" "}
-              to toggle
-            </span>
+            {!isTouch && (
+              <span className="ml-2 text-xs text-cyan-700">
+                press{" "}
+                <kbd className="rounded border border-cyan-800 px-1 py-0.5 text-[10px]">
+                  `
+                </kbd>{" "}
+                to toggle
+              </span>
+            )}
           </DrawerTitle>
         </DrawerHeader>
 

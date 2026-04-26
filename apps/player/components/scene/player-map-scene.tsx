@@ -18,6 +18,7 @@ import { BeatProximityWatcher } from "./beat-proximity-watcher";
 import { BeatBeacon } from "./beat-beacon";
 import { WorldProp } from "./world-prop";
 import { MapClickableGround } from "./map-clickable-ground";
+import { TouchMovementHandler } from "./touch-movement-handler";
 
 interface PlayerMapSceneProps {
   project: ExportedProject;
@@ -149,14 +150,28 @@ export function PlayerMapScene({
       />
 
       {firstPerson.active && !dialogueActive && (
-        <MovementHandler
-          active={firstPerson.active}
-          position={firstPerson.position}
-          rotation={firstPerson.rotation}
-          onMove={handleMove}
-          onRotate={handleRotate}
-          bounds={movementBounds}
-        />
+        <>
+          {/* Keyboard (W/A/S/D) — desktop. */}
+          <MovementHandler
+            active={firstPerson.active}
+            position={firstPerson.position}
+            rotation={firstPerson.rotation}
+            onMove={handleMove}
+            onRotate={handleRotate}
+            bounds={movementBounds}
+          />
+          {/* Virtual joystick + look-drag — touch. The two run in
+              parallel so a tablet with a paired keyboard can use
+              either. */}
+          <TouchMovementHandler
+            active={firstPerson.active}
+            position={firstPerson.position}
+            rotation={firstPerson.rotation}
+            onMove={handleMove}
+            onRotate={handleRotate}
+            bounds={movementBounds}
+          />
+        </>
       )}
 
       <WalkToTarget
