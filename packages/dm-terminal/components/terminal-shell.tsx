@@ -47,6 +47,18 @@ export interface TerminalConfig {
   renderToolResult?: (toolName: string, result: unknown) => string | null;
 }
 
+/**
+ * The same shape `useChat`'s onToolCall handler returns. Hosts that wire
+ * this up (e.g. the workbench's MCP bridge) get a stable function that,
+ * given a tool name + args, will execute it as if the in-app DM emitted
+ * it — applying the mutation to the same stores and returning the same
+ * structured result.
+ */
+export type PrepDispatch = (
+  toolName: string,
+  args: Record<string, unknown>,
+) => Promise<unknown>;
+
 export interface TerminalShellProps {
   config?: TerminalConfig;
   /**
@@ -55,6 +67,13 @@ export interface TerminalShellProps {
    * matching panel forward.
    */
   onOpenSurface?: (surface: LinkSurface) => void;
+  /**
+   * Fires once after the shell has built its tool dispatcher. The host
+   * can hold onto the dispatch function and use it to drive the same
+   * tool surface from outside the chat (e.g. an MCP bridge). The
+   * dispatcher is stable — safe to stash by reference.
+   */
+  onPrepDispatchReady?: (dispatch: PrepDispatch) => void;
 }
 
 /**
@@ -151,6 +170,7 @@ function describeToolCall(toolName: string, args: Record<string, unknown>): stri
 export function TerminalShell({
   config,
   onOpenSurface,
+  onPrepDispatchReady,
 }: TerminalShellProps = {}) {
   const termRef = useRef<XTermHandle>(null);
   const inputHandler = useRef(new InputHandler()).current;
@@ -559,6 +579,14 @@ export function TerminalShell({
     },
     [],
   );
+
+  // Hand the stable dispatcher out to the host once. Hosts (e.g. the
+  // workbench's MCP bridge) can stash the reference and use it to
+  // execute tool calls from outside the chat loop. The callback is
+  // memoized on `[]` so this fires at most once per mount.
+  useEffect(() => {
+    onPrepDispatchReady?.(handlePrepToolCall);
+  }, [onPrepDispatchReady, handlePrepToolCall]);
 
   const { messages, append, isLoading } = useChat({
     api: config?.apiEndpoint ?? "/api/chat",

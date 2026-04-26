@@ -2,6 +2,7 @@ export { TerminalShell } from "./components/terminal-shell";
 export type {
   TerminalConfig,
   TerminalShellProps,
+  PrepDispatch,
 } from "./components/terminal-shell";
 export { XTermWrapper, type XTermHandle } from "./components/xterm-wrapper";
 export { dmTools, PREP_TOOL_NAMES } from "./lib/ai/tools";

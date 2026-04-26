@@ -57,6 +57,36 @@ interface WorkbenchStore {
   // Command palette
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
+
+  // MCP bridge — when on, the workbench long-polls for tool calls from
+  // external MCP clients (Claude Desktop, Cursor) and dispatches them
+  // through the in-app DM's tool surface. Persisted in localStorage so
+  // a reload doesn't drop the user's connection mid-demo.
+  mcpEnabled: boolean;
+  setMcpEnabled: (enabled: boolean) => void;
+}
+
+const MCP_ENABLED_STORAGE_KEY = "workbench.mcp.enabled";
+
+function readPersistedMcpEnabled(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(MCP_ENABLED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function writePersistedMcpEnabled(enabled: boolean) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      MCP_ENABLED_STORAGE_KEY,
+      enabled ? "true" : "false",
+    );
+  } catch {
+    // Quota / privacy mode — fail silently; the store still has the value.
+  }
 }
 
 export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
@@ -173,4 +203,11 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   // Command palette
   commandPaletteOpen: false,
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+
+  // MCP bridge
+  mcpEnabled: readPersistedMcpEnabled(),
+  setMcpEnabled: (enabled) => {
+    writePersistedMcpEnabled(enabled);
+    set({ mcpEnabled: enabled });
+  },
 }));
