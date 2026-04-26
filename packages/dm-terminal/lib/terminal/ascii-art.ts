@@ -1,8 +1,11 @@
 import { ANSI } from './ansi';
 
 export const BANNER = `
-${ANSI.narration}${ANSI.bold}  dm.prep${ANSI.reset}  ${ANSI.dimText}// agent for designing scenes, characters, and maps${ANSI.reset}
-${ANSI.dimText}  ─────────────────────────────────────────${ANSI.reset}
+${ANSI.amber}${ANSI.bold}        ___                                ${ANSI.reset}
+${ANSI.amber}${ANSI.bold}   ____| _ \\__ _ _ ___ ___                 ${ANSI.reset}
+${ANSI.amber}${ANSI.bold}  / _\\ \\  _/ '_/ -_) '_ \\                   ${ANSI.reset}
+${ANSI.amber}${ANSI.bold}  \\__,_|_| |_| \\___| .__/                   ${ANSI.reset}
+${ANSI.amber}${ANSI.bold}                   |_|                      ${ANSI.reset}
 `;
 
 export const DIVIDER = `${ANSI.dimText}${'─'.repeat(50)}${ANSI.reset}`;

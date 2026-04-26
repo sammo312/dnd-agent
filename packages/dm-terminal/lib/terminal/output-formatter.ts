@@ -43,8 +43,14 @@ export function formatPrompt(): string {
 
 export function formatWelcome(): string {
   return (
-    `${ANSI.text}DM prep assistant.${ANSI.reset} ${ANSI.dimText}Describe a scene you want to run and I'll sketch it into the Story Boarder and Map Editor.${ANSI.reset}\r\n` +
-    `${ANSI.dimText}/auto · /map · /story · /roll · /clear · /help${ANSI.reset}\r\n`
+    `${ANSI.dimText}  /auto    hand the wheel to the agent${ANSI.reset}\r\n` +
+    `${ANSI.dimText}  /map     focus the Map Editor${ANSI.reset}\r\n` +
+    `${ANSI.dimText}  /story   focus the Story Boarder${ANSI.reset}\r\n` +
+    `${ANSI.dimText}  /roll    roll dice (e.g. /roll 2d6+3)${ANSI.reset}\r\n` +
+    `${ANSI.dimText}  /export  download project JSON${ANSI.reset}\r\n` +
+    `${ANSI.dimText}  /help    full command list${ANSI.reset}\r\n` +
+    `\r\n` +
+    `${ANSI.text}Type your story here.${ANSI.reset}\r\n`
   );
 }
 
