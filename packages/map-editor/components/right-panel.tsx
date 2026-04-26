@@ -54,6 +54,20 @@ import {
 } from "lucide-react"
 import { cn } from "@dnd-agent/ui/lib/utils"
 
+/**
+ * Map size presets — Figma-frame style, named for the kind of scene each
+ * size suits rather than abstract S/M/L. Cells are roughly 5ft each, so
+ * these correspond to: a tactical encounter pad, a small town or dungeon
+ * level, a hex of regional travel, and a full overworld. Custom sizes
+ * (and anything between) are still available via the W × H inputs.
+ */
+const SIZE_PRESETS: ReadonlyArray<{ label: string; w: number; h: number }> = [
+  { label: "Encounter", w: 20, h: 20 },
+  { label: "Town", w: 40, h: 40 },
+  { label: "Region", w: 60, h: 60 },
+  { label: "World", w: 100, h: 100 },
+]
+
 interface RightPanelProps {
   selectedPOI: PlacedPOI | null
   selectedRegion: NamedRegion | null
@@ -286,34 +300,89 @@ export function RightPanel({
         </h2>
       </div>
 
-      <ScrollArea className="flex-1">
+      {/* `min-h-0` is the critical bit: a flex child defaults to
+       * `min-height: auto`, which means `flex-1` can't shrink below the
+       * content size — and since Radix ScrollArea's Root doesn't have
+       * `overflow: hidden`, the viewport grew to its content height
+       * instead of overflowing. With `min-h-0` the viewport is finally
+       * bounded by the panel and can scroll. */}
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-4">
-          {/* Map Settings */}
-          <div className="space-y-3">
+          {/* Map size — Figma frame–style picker. Preset chips for the
+           * common cases, custom W×H inputs underneath for anything in
+           * between, plus an inline Apply button that only appears when
+           * the staged size differs from the live map. Cap raised to 200
+           * (40k cells) — 2D handles it fine; 3D gets sluggish past
+           * ~120, since each cell is its own mesh. */}
+          <div className="space-y-2.5">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Map Size
+              Map size
             </h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
+              {SIZE_PRESETS.map((preset) => {
+                const isActive =
+                  newWidth === preset.w && newHeight === preset.h
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setNewWidth(preset.w)
+                      setNewHeight(preset.h)
+                    }}
+                    className={cn(
+                      "text-left px-2 py-1.5 rounded border text-xs transition-colors",
+                      isActive
+                        ? "border-primary/60 bg-primary/10"
+                        : "border-border hover:border-muted-foreground/40 hover:bg-muted/40"
+                    )}
+                  >
+                    <div className="font-medium text-foreground leading-tight">
+                      {preset.label}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground tabular-nums leading-tight mt-0.5">
+                      {preset.w} × {preset.h}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-1.5">
               <div className="space-y-1">
-                <Label className="text-xs">Width</Label>
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  W
+                </Label>
                 <Input
                   type="number"
                   value={newWidth}
                   onChange={(e) =>
-                    setNewWidth(Math.max(5, Math.min(100, Number(e.target.value))))
+                    setNewWidth(
+                      Math.max(5, Math.min(200, Number(e.target.value) || 5))
+                    )
                   }
-                  className="h-8 text-sm"
+                  className="h-8 text-sm tabular-nums"
+                  min={5}
+                  max={200}
                 />
               </div>
+              <div className="text-muted-foreground/50 text-xs pb-2 select-none">
+                ×
+              </div>
               <div className="space-y-1">
-                <Label className="text-xs">Height</Label>
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  H
+                </Label>
                 <Input
                   type="number"
                   value={newHeight}
                   onChange={(e) =>
-                    setNewHeight(Math.max(5, Math.min(100, Number(e.target.value))))
+                    setNewHeight(
+                      Math.max(5, Math.min(200, Number(e.target.value) || 5))
+                    )
                   }
-                  className="h-8 text-sm"
+                  className="h-8 text-sm tabular-nums"
+                  min={5}
+                  max={200}
                 />
               </div>
             </div>
@@ -323,9 +392,15 @@ export function RightPanel({
                 className="w-full"
                 onClick={() => onResizeMap(newWidth, newHeight)}
               >
-                <Maximize2 className="h-3.5 w-3.5 mr-1" />
-                Apply Size
+                <Maximize2 className="h-3.5 w-3.5 mr-1.5" />
+                Apply {newWidth} × {newHeight}
               </Button>
+            )}
+            {newWidth * newHeight > 14400 && (
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Large maps may slow the 3D preview — 2D editing is still
+                smooth.
+              </p>
             )}
           </div>
 
