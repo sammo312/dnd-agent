@@ -19,6 +19,7 @@ import { BeatBeacon } from "./beat-beacon";
 import { WorldProp } from "./world-prop";
 import { MapClickableGround } from "./map-clickable-ground";
 import { TouchMovementHandler } from "./touch-movement-handler";
+import { GroundDetail } from "./ground-detail";
 
 interface PlayerMapSceneProps {
   project: ExportedProject;
@@ -286,6 +287,12 @@ export function PlayerMapScene({
           <meshStandardMaterial color="#3d7a3d" />
         </mesh>
       )}
+
+      {/* Scattered grass tufts + pebbles on grass-y / forest /
+          stony tiles. Two instanced draw calls covering the whole
+          map — adds the "lived in" texture the bare cube terrain
+          was missing. */}
+      <GroundDetail cells={map.cells} width={map.width} height={map.height} />
 
       {map.pois.map((poi) => (
         <WorldProp

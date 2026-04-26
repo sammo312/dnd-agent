@@ -22,13 +22,13 @@ import { useFrame } from "@react-three/fiber";
 import { Billboard, Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
-import {
-  FencePost,
-  RunescapeBush,
-  RunescapeRock,
-  RunescapeTree,
-} from "@dnd-agent/three-engine";
+import { FencePost } from "@dnd-agent/three-engine";
 import type { ExportedMapCell, ExportedPOI } from "@dnd-agent/shared";
+
+import { StylizedTree } from "./props/stylized-tree";
+import { StylizedRock } from "./props/stylized-rock";
+import { StylizedBush } from "./props/stylized-bush";
+import { StylizedCottage } from "./props/stylized-cottage";
 
 interface WorldPropProps {
   poi: ExportedPOI;
@@ -102,19 +102,29 @@ function TreeCluster({ scale, seed }: { scale: number; seed: number }) {
 
   const offsets = useMemo(() => {
     const rng = mulberry32(seed);
+    // Each child gets its own seed so canopy color jitter varies
+    // per-tree even within a single cluster.
     return [
-      { x: 0, z: 0, s: scale, phase: rng() * Math.PI * 2 },
+      {
+        x: 0,
+        z: 0,
+        s: scale,
+        phase: rng() * Math.PI * 2,
+        childSeed: (seed * 31 + 1) >>> 0,
+      },
       {
         x: (rng() - 0.5) * 1.4,
         z: (rng() - 0.5) * 1.4,
         s: scale * (0.55 + rng() * 0.25),
         phase: rng() * Math.PI * 2,
+        childSeed: (seed * 31 + 2) >>> 0,
       },
       {
         x: (rng() - 0.5) * 1.6,
         z: (rng() - 0.5) * 1.6,
         s: scale * (0.45 + rng() * 0.25),
         phase: rng() * Math.PI * 2,
+        childSeed: (seed * 31 + 3) >>> 0,
       },
     ];
   }, [scale, seed]);
@@ -135,32 +145,13 @@ function TreeCluster({ scale, seed }: { scale: number; seed: number }) {
   return (
     <group ref={rootRef}>
       {offsets.map((o, i) => (
-        <RunescapeTree key={i} position={[o.x, 0, o.z]} scale={o.s} />
+        <StylizedTree
+          key={i}
+          position={[o.x, 0, o.z]}
+          scale={o.s}
+          seed={o.childSeed}
+        />
       ))}
-    </group>
-  );
-}
-
-/** Tiny procedural cottage — flat-shaded, matches the Runescape props. */
-function ProceduralBuilding({ size }: { size: { w: number; h: number } }) {
-  const w = Math.max(0.8, size.w * 0.9);
-  const d = Math.max(0.8, size.h * 0.9);
-  const wallH = 0.9;
-  const roofH = 0.6;
-  return (
-    <group>
-      <mesh position={[0, wallH / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[w, wallH, d]} />
-        <meshStandardMaterial color="#a1856b" flatShading />
-      </mesh>
-      <mesh position={[0, wallH + roofH / 2, 0]} castShadow>
-        <coneGeometry args={[Math.max(w, d) * 0.75, roofH, 4]} />
-        <meshStandardMaterial color="#5c3a1e" flatShading />
-      </mesh>
-      <mesh position={[0, 0.35, d / 2 + 0.01]}>
-        <planeGeometry args={[0.25, 0.45]} />
-        <meshStandardMaterial color="#2a1a10" />
-      </mesh>
     </group>
   );
 }
@@ -237,13 +228,13 @@ export function WorldProp({ poi, cells, playerPosition }: WorldPropProps) {
       ) : kind === "tree" ? (
         <TreeCluster scale={scale} seed={seed} />
       ) : kind === "rock" ? (
-        <RunescapeRock position={[0, 0, 0]} scale={scale} />
+        <StylizedRock scale={scale} seed={seed} />
       ) : kind === "bush" ? (
-        <RunescapeBush position={[0, 0, 0]} scale={scale} />
+        <StylizedBush scale={scale} seed={seed} />
       ) : kind === "fence" ? (
         <FencePost position={[0, 0, 0]} />
       ) : kind === "building" ? (
-        <ProceduralBuilding size={poi.size} />
+        <StylizedCottage size={poi.size} />
       ) : (
         <IconSprite poi={poi} />
       )}
