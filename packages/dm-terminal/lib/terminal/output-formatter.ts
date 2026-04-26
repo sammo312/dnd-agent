@@ -36,9 +36,22 @@ export function formatError(text: string): string {
  * `›` is rendered in the accent-amber tone with a leading space for breathing
  * room, then the input itself is in text-primary so what the DM types is
  * brighter than the prompt.
+ *
+ * When `autoMode` is true, the prompt is prefixed with a dim `[auto]`
+ * tag so the user has a persistent reminder that the agent is in
+ * auto-drive — every prompt line in the scrollback shows it. Use the
+ * inline variant below when redrawing on the current line (history
+ * navigation, store-driven re-renders) to avoid an extra `\r\n`.
  */
-export function formatPrompt(): string {
-  return `\r\n${ANSI.amber}›${ANSI.reset} ${ANSI.input}`;
+export function formatPrompt(autoMode: boolean = false): string {
+  return `\r\n${formatPromptInline(autoMode)}`;
+}
+
+export function formatPromptInline(autoMode: boolean = false): string {
+  const tag = autoMode
+    ? `${ANSI.dimText}[${ANSI.amber}auto${ANSI.reset}${ANSI.dimText}]${ANSI.reset} `
+    : "";
+  return `${tag}${ANSI.amber}›${ANSI.reset} ${ANSI.input}`;
 }
 
 /**

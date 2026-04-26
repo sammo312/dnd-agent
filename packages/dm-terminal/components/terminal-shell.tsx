@@ -22,11 +22,11 @@ import { runProjectExport } from "../lib/export/run-export";
 import {
   formatNarration,
   formatPrompt,
+  formatPromptInline,
   formatWelcome,
   formatError,
   formatDiceRoll,
   formatToolCall,
-  formatStatus,
 } from "../lib/terminal/output-formatter";
 import { ANSI } from "../lib/terminal/ansi";
 import { Picker, type PickerResult } from "../lib/terminal/picker";
@@ -183,7 +183,8 @@ export function TerminalShell({
 
   const showPrompt = useCallback(() => {
     if (!promptShownRef.current && !pickerRef.current) {
-      termRef.current?.write(formatPrompt());
+      const auto = useDmContextStore.getState().autoMode;
+      termRef.current?.write(formatPrompt(auto));
       promptShownRef.current = true;
     }
   }, []);
@@ -660,7 +661,7 @@ export function TerminalShell({
     onPrepDispatchReady?.(handlePrepToolCall);
   }, [onPrepDispatchReady, handlePrepToolCall]);
 
-  const { messages, append, isLoading } = useChat({
+  const { messages, append, isLoading, stop } = useChat({
     api: config?.apiEndpoint ?? "/api/chat",
     maxSteps: 16,
     experimental_prepareRequestBody: ({ messages }) => ({
@@ -709,9 +710,23 @@ export function TerminalShell({
   const redrawLine = useCallback((line: string) => {
     const term = termRef.current;
     if (!term) return;
+    const auto = useDmContextStore.getState().autoMode;
     term.write(ANSI.cursorToStart + ANSI.clearLine);
-    term.write(`${ANSI.amber}›${ANSI.reset} ${ANSI.input}${line}`);
+    term.write(`${formatPromptInline(auto)}${line}`);
   }, []);
+
+  // Keep the prompt's [auto] tag in sync with the store. The slash-command
+  // path already redraws on submit, but anything else that toggles the
+  // store (a future menu button, programmatic flip) would otherwise
+  // leave the on-screen prompt stale until the next keystroke.
+  useEffect(() => {
+    return useDmContextStore.subscribe((state, prev) => {
+      if (state.autoMode === prev.autoMode) return;
+      if (!promptShownRef.current) return;
+      if (pickerRef.current || isStreamingRef.current) return;
+      redrawLine(inputHandler.getBuffer());
+    });
+  }, [redrawLine, inputHandler]);
 
   const sendToAI = useCallback(
     (text: string) => {
@@ -763,8 +778,48 @@ export function TerminalShell({
         return;
       }
 
+      // Ctrl-C: cancel everything and reset the line. We have to handle
+      // this BEFORE the isLoading guard or there's no way to bail out
+      // of a runaway streaming response. Three states to cover:
+      //   1. Streaming   → stop() the chat, reset bookkeeping refs,
+      //                    print "^C interrupted." and re-prompt.
+      //   2. Menu open   → erase menu (the rest of the line clear runs
+      //                    in the idle path).
+      //   3. Idle        → clear input buffer, reprint the line so the
+      //                    user lands on a fresh prompt.
+      if (data === "\x03") {
+        const menu = commandMenuRef.current;
+        menu?.erase();
+
+        if (isLoading) {
+          // Aborts the underlying fetch, which ends the stream and
+          // prevents any further onToolCall fan-out. The planner's
+          // server-side generateText keeps running for a beat (we
+          // can't reach into it from the client) but its tokens are
+          // already orphaned — they won't reach the workspace.
+          stop();
+          isStreamingRef.current = false;
+          toolResultRenderedRef.current.clear();
+          term.write(
+            `\r\n${ANSI.error}^C interrupted.${ANSI.reset}\r\n`,
+          );
+          promptShownRef.current = false;
+          showPrompt();
+          return;
+        }
+
+        // Idle interrupt — drop whatever's in the input buffer and
+        // give the user a clean line.
+        inputHandler.clear();
+        term.write("^C\r\n");
+        promptShownRef.current = false;
+        showPrompt();
+        return;
+      }
+
       if (isLoading) {
-        // Allow Ctrl+C to interrupt later — for now silently swallow.
+        // Block other keystrokes while streaming. (Ctrl-C above is the
+        // only escape hatch.)
         return;
       }
 
@@ -859,11 +914,9 @@ export function TerminalShell({
           menu.refresh(event.line);
           break;
 
-        case "interrupt":
-          menu.erase();
-          term.write("^C\r\n");
-          showPrompt();
-          break;
+        // (interrupt is intercepted above the inputHandler.processKey
+        // call so it can fire during streaming — input-handler still
+        // emits it but we never get here.)
 
         case "tab": {
           const buffer = inputHandler.getBuffer();
@@ -879,7 +932,7 @@ export function TerminalShell({
         }
       }
     },
-    [isLoading, inputHandler, showPrompt, sendToAI, redrawLine, config, commandContext],
+    [isLoading, stop, inputHandler, showPrompt, sendToAI, redrawLine, config, commandContext],
   );
 
   // Render streamed assistant output: text deltas + tool call labels + tool results.
@@ -995,10 +1048,8 @@ export function TerminalShell({
       term.write(config.banner);
     }
     term.write(config?.welcomeMessage?.() ?? formatWelcome());
-    const auto = useDmContextStore.getState().autoMode;
-    if (auto) {
-      term.write(formatStatus("auto mode is on"));
-    }
+    // The prompt itself carries the persistent [auto] tag now; no need
+    // for a separate boot-time status line.
     showPrompt();
   }, [showPrompt, config]);
 

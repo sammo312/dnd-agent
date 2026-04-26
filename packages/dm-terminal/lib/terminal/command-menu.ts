@@ -7,7 +7,7 @@ import { ANSI } from "./ansi";
  * one-liner. Keep these aligned with command-router.ts.
  */
 const COMMANDS: Array<{ name: string; hint: string; summary: string }> = [
-  { name: "/auto", hint: "[on|off]", summary: "toggle agent auto-drive" },
+  { name: "/auto", hint: "[on|off|<message>]", summary: "toggle / steer agent auto-drive" },
   { name: "/map", hint: "", summary: "focus the Map Editor" },
   { name: "/story", hint: "", summary: "focus the Story Boarder" },
   { name: "/export", hint: "[-f]", summary: "download project JSON" },
