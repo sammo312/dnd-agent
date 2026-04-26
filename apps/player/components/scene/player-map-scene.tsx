@@ -15,7 +15,9 @@ import {
 } from "@dnd-agent/three-engine";
 import type { ExportedProject } from "@dnd-agent/shared";
 import { playerTerrainPalette } from "@/lib/three/terrain-palette";
+import { useNarrativeStore } from "@/lib/narrative/narrative-store";
 import { PlayerScrollCamera } from "./player-scroll-camera";
+import { BeatProximityWatcher } from "./beat-proximity-watcher";
 
 interface PlayerMapSceneProps {
   project: ExportedProject;
@@ -45,6 +47,20 @@ export function PlayerMapScene({
   const { map } = project;
   const hasAutoEnteredRef = useRef(false);
   const [walkTarget, setWalkTarget] = useState<THREE.Vector3 | null>(null);
+
+  // Narrative runtime: while a dialogue is active, freeze the player.
+  const dialogueActive = useNarrativeStore((s) => s.active !== null);
+  const firePrefaceIfNeeded = useNarrativeStore(
+    (s) => s.firePrefaceIfNeeded,
+  );
+
+  // Auto-run the preface section the first time the player actually
+  // enters the world (i.e. FPS engages). Doing it earlier would fire
+  // before the map is composed; doing it later misses the dramatic
+  // beat of the camera dive.
+  useEffect(() => {
+    if (firstPerson.active) firePrefaceIfNeeded(project);
+  }, [firstPerson.active, firePrefaceIfNeeded, project]);
 
   // Wire-format beats → three-engine's marker shape. Beats with a node
   // id are "node" markers (cyan); section-only beats are "section"
@@ -153,7 +169,7 @@ export function PlayerMapScene({
         eyeHeight={eyeHeight}
       />
 
-      {firstPerson.active && (
+      {firstPerson.active && !dialogueActive && (
         <MovementHandler
           active={firstPerson.active}
           position={firstPerson.position}
@@ -164,7 +180,7 @@ export function PlayerMapScene({
       )}
 
       <WalkToTarget
-        active={walkTarget !== null}
+        active={walkTarget !== null && !dialogueActive}
         targetPosition={walkTarget}
         currentPosition={firstPerson.position}
         rotation={firstPerson.rotation}
@@ -175,8 +191,16 @@ export function PlayerMapScene({
 
       <ClickableGround
         onClickPosition={handleClickToWalk}
-        visible={firstPerson.active}
+        visible={firstPerson.active && !dialogueActive}
       />
+
+      {firstPerson.active && (
+        <BeatProximityWatcher
+          project={project}
+          position={firstPerson.position}
+          paused={dialogueActive}
+        />
+      )}
 
       <ambientLight intensity={0.55} />
       <directionalLight

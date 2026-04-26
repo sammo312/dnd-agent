@@ -6,7 +6,9 @@ import { ControlsHint } from "@/components/hud/controls-hint";
 import { ScrollHint } from "@/components/hud/scroll-hint";
 import { ProjectImportScreen } from "@/components/project-import-screen";
 import { ProjectLoadedSummary } from "@/components/project-loaded-summary";
+import { DialogueOverlay } from "@/components/dialogue/dialogue-overlay";
 import { useProjectStore } from "@/lib/project/project-store";
+import { useNarrativeStore } from "@/lib/narrative/narrative-store";
 
 const PlayerView = dynamic(() => import("@/components/player-scene"), {
   ssr: false,
@@ -41,13 +43,17 @@ export default function Home() {
     hydrateFromSession();
   }, [hydrateFromSession]);
 
+  const resetNarrative = useNarrativeStore((s) => s.reset);
   const [enteredScene, setEnteredScene] = useState(false);
 
   // Any fresh import (loadedAt change) bounces us back to the summary,
-  // so the DM gets a confirmation read-back of what just landed.
+  // so the DM gets a confirmation read-back of what just landed. We
+  // also wipe narrative runtime state so the new project starts with
+  // a clean preface / triggered-beats slate.
   useEffect(() => {
     setEnteredScene(false);
-  }, [loadedAt]);
+    resetNarrative();
+  }, [loadedAt, resetNarrative]);
 
   const stage: Stage = !project
     ? "import"
@@ -142,6 +148,11 @@ function SceneStage() {
 
       {/* Player CLI drawer */}
       <PlayerCliDrawer />
+
+      {/* Story beats fire here. The overlay positions itself fixed on
+          top of the scene; the proximity watcher inside the Canvas
+          decides when it appears. */}
+      <DialogueOverlay project={project} />
     </div>
   );
 }
