@@ -215,7 +215,7 @@ export const paintTerrainTool = tool({
 
 export const addPOITool = tool({
   description:
-    "Place a point of interest on the map (building, landmark, encounter spot).",
+    "Place a point of interest on the map (building, landmark, encounter spot). EVERY POI must have an associated beat so walking up to it shows the player at least a short description — even decorative landmarks. The expected pattern: addPOI → createChapter with kind:'beat' → addDialogueNode (one terminal node, 1-2 lines describing what the player sees) → placeBeat at the POI's coordinates with radius 1. Don't drop POIs without immediately wiring this beat — an undescribed POI on the map is a bug.",
   parameters: z.object({
     poiType: z
       .enum([

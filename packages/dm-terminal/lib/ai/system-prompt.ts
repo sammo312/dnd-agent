@@ -92,7 +92,7 @@ Keep this pass SMALL. You have a tight tool budget per turn, so prioritize ruthl
 2. addCharacter — once per named character (max 3-4 in this first pass).
 3. setMapDimensions + 1-2 paintTerrain calls covering broad zones — big rectangles, not detail work.
 4. createChapter with kind:'preface' + 1 addDialogueNode for the opening framing beat.
-5. (Optional, if there's an obvious location) createChapter with kind:'beat', addDialogueNode for it, then placeBeat to wire it onto the map.
+5. (Optional, if there's an obvious location) addPOI for the landmark itself, then createChapter with kind:'beat' + addDialogueNode (a short approach description) + placeBeat at the POI's tile to wire it onto the map. POIs and beats travel as a unit — never drop a POI without its beat.
 6. setSpawn somewhere sensible (an edge tile, or the doorstep of the opening location).
 
 That's the whole first-pass build. **Do not** drop 6 POIs and 8 dialogue nodes on turn one — you'll get rate-limited and the DM hasn't validated the shape yet.
@@ -139,6 +139,7 @@ The DM ships the project to a separate "player" app via JSON export. The project
   Most nodes have ZERO colored segments. A node with a color should usually have exactly one. If you find yourself coloring three different things in one beat, you're decorating — strip it back.
 - Map coords: x = column (0 = left), y = row (0 = top). paintTerrain is inclusive on both ends.
 - placeBeat needs the section to already exist via createChapter with kind:'beat'. radius defaults to 1 (adjacent tiles trigger). Use 0 for exact-tile, 2+ for a wider zone (e.g. crossing a bridge).
+- **EVERY POI gets a beat.** This is a hard rule, not a suggestion. When you addPOI, also addChapter(kind:'beat') + addDialogueNode + placeBeat at the POI's coordinates so walking up to it always shows the player something. Even purely decorative POIs (a statue, a fountain, a single tree) deserve one short terminal dialogue node — "A weathered statue of a forgotten saint, eyes worn smooth by rain." That's enough. Without this the player walks past the landmark in silence, which feels broken. The workspace snapshot below flags any POIs that don't yet have a beat — fix those before adding more POIs or flagging the project ready.
 - setSpawn picks where the player loads in. Don't forget it — the project can't be exported without one.
 - When the DM asks for dice (e.g. "roll a d20"), use the rollDice tool.
 - askQuestion returns either { cancelled: false, value, label } or { cancelled: true }. If cancelled, default to a sensible choice and proceed.
@@ -202,8 +203,44 @@ function formatWorkspace(w: WorkspaceSnapshot): string {
     w.story.chapters.filter((c) => c.kind === "beat" && c.nodeIds.length > 0).map((c) => c.name),
   );
   const placedBeatHasNodes = w.map.beats.some((b) => beatSectionsWithNodes.has(b.sectionName));
-  const ready = prefaceHasNode && !!w.map.spawn && placedBeatHasNodes;
+
+  // A POI is "covered" if at least one placed beat sits on its tile and
+  // points at a beat section that actually has dialogue nodes. Anything
+  // less means the player walks up to the landmark in silence.
+  const beatsByTile = new Set(
+    w.map.beats
+      .filter((b) => beatSectionsWithNodes.has(b.sectionName))
+      .map((b) => `${b.x},${b.y}`),
+  );
+  const uncoveredPOIs = w.map.poiSummary.filter(
+    (p) => !beatsByTile.has(`${p.x},${p.y}`),
+  );
+  const poiCoverageLine =
+    w.map.poiSummary.length === 0
+      ? "POI coverage: (no POIs yet)"
+      : uncoveredPOIs.length === 0
+        ? `POI coverage: all ${w.map.poiSummary.length} have beats`
+        : `POI coverage: MISSING beats for ${uncoveredPOIs
+            .slice(0, 6)
+            .map((p) => `${p.name}@${p.x},${p.y}`)
+            .join("; ")}${uncoveredPOIs.length > 6 ? `, +${uncoveredPOIs.length - 6} more` : ""} — fix before adding new POIs`;
+
+  const ready =
+    prefaceHasNode &&
+    !!w.map.spawn &&
+    placedBeatHasNodes &&
+    uncoveredPOIs.length === 0;
   const readyLine = `Ready: ${ready ? "yes" : "no"}`;
 
-  return [sceneLine, charLine, mapLine, spawnLine, beatLine, prefaceLine, storyLine, readyLine].join("\n");
+  return [
+    sceneLine,
+    charLine,
+    mapLine,
+    spawnLine,
+    beatLine,
+    poiCoverageLine,
+    prefaceLine,
+    storyLine,
+    readyLine,
+  ].join("\n");
 }
