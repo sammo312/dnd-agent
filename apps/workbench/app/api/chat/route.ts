@@ -22,11 +22,16 @@ export async function POST(req: Request) {
   }: { messages: Message[]; workspace?: WorkspaceSnapshot } = await req.json();
 
   const result = streamText({
-    model: anthropic("anthropic/claude-sonnet-4"),
+    // Haiku 4.5 has much higher TPM limits than Sonnet on the gateway and is
+    // plenty capable for tool-orchestration / scene-prep work. Keeps cost low too.
+    model: anthropic("anthropic/claude-haiku-4-5"),
     system: buildSystemPrompt(workspace),
     messages: convertToCoreMessages(messages),
     tools: dmTools,
-    maxSteps: 16,
+    // Prevent runaway tool chains that blow the per-minute token budget.
+    maxSteps: 6,
+    // Don't compound rate-limit errors with auto-retries.
+    maxRetries: 1,
     onError({ error }) {
       console.log("[v0] streamText error:", error);
     },
