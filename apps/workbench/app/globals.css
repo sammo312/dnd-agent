@@ -153,6 +153,14 @@
   }
   html, body {
     @apply bg-background text-foreground;
+    /* Workbench is a fixed-viewport single-page app. Locking document
+     * scroll prevents wheel events that bubble out of xterm (or land on
+     * its padding "dead zones") from sliding the entire page up — which
+     * was hiding the dockview tab strip and the top-rail buttons, and
+     * making the terminal feel like it couldn't reach its own bottom. */
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
   body {
     font-family: var(--font-sans);

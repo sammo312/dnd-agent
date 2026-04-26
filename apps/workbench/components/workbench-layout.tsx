@@ -84,8 +84,11 @@ export function WorkbenchLayout() {
         tabComponents={tabComponents}
       />
       <NarrativeBridge />
-      {/* Top-right rail: project-level verbs, anchored above the dockview tabs. */}
-      <div className="absolute right-3 top-1.5 z-50 flex items-center gap-1.5">
+      {/* Top-right rail: project-level verbs, pinned to the viewport so it
+       * sits above the dockview tab strip regardless of any internal
+       * stacking context dockview creates for its panels. `fixed` (not
+       * `absolute`) anchors to the viewport directly. */}
+      <div className="fixed right-3 top-1.5 z-[100] flex items-center gap-1.5">
         <OpenInPlayerButton />
         <ExportButton />
       </div>
