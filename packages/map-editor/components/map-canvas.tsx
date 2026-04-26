@@ -41,6 +41,7 @@ interface MapCanvasProps {
   selectedRegion: string | null
   zoom: number
   onZoomChange: (zoom: number) => void
+  onClearSelection?: () => void
   showGrid: boolean
   showRegionOverlay: boolean
   showAssociations: boolean
@@ -74,6 +75,7 @@ export function MapCanvas({
   selectedRegion,
   zoom,
   onZoomChange,
+  onClearSelection,
   showGrid,
   showRegionOverlay,
   showAssociations,
@@ -363,13 +365,25 @@ export function MapCanvas({
           })
         }
       }}
+      onMouseDown={(e) => {
+        // Click on the dark gutter around the map (i.e. anywhere outside
+        // the map wrapper itself) clears the current selection. This is
+        // what makes the right-side properties panel auto-collapse when
+        // the user is "done with" the thing they were inspecting.
+        if (e.target === e.currentTarget && e.button === 0) {
+          onClearSelection?.()
+        }
+      }}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
     >
-      {/* Infinite canvas background pattern */}
+      {/* Infinite canvas background pattern. `pointer-events-none` keeps
+       * the dot pattern from intercepting the background mousedown above
+       * — without it, clicks land on this overlay and never reach the
+       * container, so onClearSelection never fires. */}
       <div
-        className="absolute inset-0 opacity-10"
+        className="absolute inset-0 opacity-10 pointer-events-none"
         style={{
           backgroundImage: `radial-gradient(circle, #666 1px, transparent 1px)`,
           backgroundSize: "20px 20px",

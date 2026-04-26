@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import type {
   PlacedPOI,
   NamedRegion,
@@ -46,6 +46,8 @@ import {
   Mountain,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Box,
   Upload,
   Link,
@@ -75,6 +77,7 @@ interface RightPanelProps {
   mapHeight: number
   onResizeMap: (width: number, height: number) => void
   collapsed?: boolean
+  onToggleCollapsed?: () => void
 }
 
 const allTerrains = [...naturalTerrains, ...humanMadeTerrains]
@@ -102,14 +105,13 @@ export function RightPanel({
   mapHeight,
   onResizeMap,
   collapsed = false,
+  onToggleCollapsed,
 }: RightPanelProps) {
   const [poiName, setPoiName] = useState(selectedPOI?.name || "")
   const [regionName, setRegionName] = useState(selectedRegion?.name || "")
   const [beatName, setBeatName] = useState(selectedBeat?.name || "")
   const [newWidth, setNewWidth] = useState(mapWidth)
   const [newHeight, setNewHeight] = useState(mapHeight)
-  const [flyoutOpen, setFlyoutOpen] = useState(false)
-  const flyoutRef = useRef<HTMLDivElement>(null)
 
   // Update local state when selection changes
   useEffect(() => {
@@ -123,23 +125,6 @@ export function RightPanel({
   useEffect(() => {
     setBeatName(selectedBeat?.name || "")
   }, [selectedBeat?.id, selectedBeat?.name])
-
-  // Close flyout when clicking outside
-  useEffect(() => {
-    if (!flyoutOpen) return
-    const handleMouseDown = (e: MouseEvent) => {
-      if (flyoutRef.current && !flyoutRef.current.contains(e.target as Node)) {
-        setFlyoutOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleMouseDown)
-    return () => document.removeEventListener("mousedown", handleMouseDown)
-  }, [flyoutOpen])
-
-  // Close flyout when uncollapsing
-  useEffect(() => {
-    if (!collapsed) setFlyoutOpen(false)
-  }, [collapsed])
 
   const handlePOINameChange = (name: string) => {
     setPoiName(name)
@@ -278,10 +263,26 @@ export function RightPanel({
   // Shared panel content
   const panelContent = (
     <>
-      <div className="p-3 border-b">
+      <div className="px-2 py-1.5 border-b flex items-center gap-1">
+        {onToggleCollapsed && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onToggleCollapsed}
+                className="h-7 w-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                aria-label="Collapse panel"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Collapse panel</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
         <h2 className="text-sm font-semibold flex items-center gap-2">
           <Settings2 className="h-4 w-4" />
-          Properties
+          {hasSelection ? "Properties" : "Map"}
         </h2>
       </div>
 
@@ -833,53 +834,46 @@ export function RightPanel({
     </>
   )
 
-  // Collapsed mode: icon strip + flyout
+  // Collapsed mode: thin chevron rail mirroring the left panel.
+  // Auto-expand on selection (handled by the parent) covers the old
+  // flyout pattern; the chevron lets the user manually re-expand.
+  // The selection dot is still useful as an at-a-glance hint that
+  // something is selected even while the panel is collapsed.
   if (collapsed) {
     return (
       <TooltipProvider delayDuration={0}>
-        <div className="w-10 border-l bg-background flex flex-col items-center shrink-0">
-          {/* Single icon button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setFlyoutOpen(!flyoutOpen)}
-                className={cn(
-                  "w-8 h-8 mt-2 rounded flex items-center justify-center transition-colors relative",
-                  flyoutOpen
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                )}
-              >
-                <Settings2 className="h-4 w-4" />
-                {/* Colored dot when something is selected */}
-                {hasSelection && (
-                  <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-primary" />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Properties</p>
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Flyout overlay */}
-          {flyoutOpen && (
-            <div
-              ref={flyoutRef}
-              className="absolute right-10 top-0 bottom-0 w-72 z-30 bg-background border-l shadow-lg flex flex-col"
-            >
-              {panelContent}
-            </div>
+        <div className="w-10 border-l bg-background flex flex-col shrink-0">
+          {onToggleCollapsed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggleCollapsed}
+                  className="h-8 mx-1 mt-1 mb-0.5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors relative"
+                  aria-label="Expand panel"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {hasSelection && (
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>{hasSelection ? "Show properties" : "Map settings"}</p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </TooltipProvider>
     )
   }
 
-  // Expanded mode: full panel
+  // Expanded mode: full panel. Wrapped in TooltipProvider so the
+  // collapse-chevron tooltip in the header works.
   return (
-    <div className="w-72 border-l bg-background flex flex-col shrink-0">
-      {panelContent}
-    </div>
+    <TooltipProvider delayDuration={0}>
+      <div className="w-72 border-l bg-background flex flex-col shrink-0">
+        {panelContent}
+      </div>
+    </TooltipProvider>
   )
 }
