@@ -1,0 +1,25 @@
+{
+  "name": "@dnd-agent/narrative-editor",
+  "version": "0.0.1",
+  "private": true,
+  "sideEffects": false,
+  "exports": {
+    ".": "./index.ts",
+    "./components/*": "./components/story-boarder/*.tsx",
+    "./lib/*": "./lib/*.ts"
+  },
+  "dependencies": {
+    "@dnd-agent/ui": "workspace:*",
+    "@dnd-agent/shared": "workspace:*",
+    "zustand": "^5.0.10",
+    "immer": "^10.1.1"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

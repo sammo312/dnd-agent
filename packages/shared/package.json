@@ -1,0 +1,14 @@
+{
+  "name": "@dnd-agent/shared",
+  "version": "0.0.1",
+  "private": true,
+  "sideEffects": false,
+  "exports": {
+    ".": "./index.ts",
+    "./types": "./types/index.ts",
+    "./types/*": "./types/*.ts"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

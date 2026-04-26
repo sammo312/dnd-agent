@@ -1,0 +1,28 @@
+{
+  "name": "@dnd-agent/map-editor",
+  "version": "0.0.1",
+  "private": true,
+  "sideEffects": false,
+  "exports": {
+    ".": "./index.ts",
+    "./components/*": "./components/*.tsx",
+    "./hooks/*": "./hooks/*.ts",
+    "./lib/*": "./lib/*.ts"
+  },
+  "dependencies": {
+    "@dnd-agent/ui": "workspace:*",
+    "@dnd-agent/shared": "workspace:*",
+    "@dnd-agent/three-engine": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": ">=0.160.0",
+    "@react-three/fiber": ">=9.0.0",
+    "@react-three/drei": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

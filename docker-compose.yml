@@ -1,0 +1,19 @@
+services:
+  workbench:
+    build:
+      context: .
+      dockerfile: apps/workbench/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+  player:
+    build:
+      context: .
+      dockerfile: apps/player/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production

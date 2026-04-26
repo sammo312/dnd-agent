@@ -1,0 +1,38 @@
+{
+  "name": "@dnd-agent/player",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.5.10",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "three": "^0.182.0",
+    "@react-three/fiber": "^9.5.0",
+    "@react-three/drei": "^10.7.7",
+    "next-themes": "^0.4.6",
+    "ai": "^4.0.0",
+    "@ai-sdk/anthropic": "^1.0.0",
+    "@ai-sdk/react": "^1.0.0",
+    "zod": "^3.25.0",
+    "@dnd-agent/three-engine": "workspace:*",
+    "@dnd-agent/shared": "workspace:*",
+    "@dnd-agent/player-terminal": "workspace:*",
+    "@dnd-agent/ui": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": ">=0.160.0",
+    "tailwindcss": "^4.1.9",
+    "@tailwindcss/postcss": "^4.1.9",
+    "postcss": "^8"
+  }
+}
