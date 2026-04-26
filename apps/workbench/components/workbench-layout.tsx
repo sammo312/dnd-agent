@@ -9,7 +9,6 @@ import {
 import { MapEditorPanel } from "./panels/map-editor-panel";
 import { NarrativePanel } from "./panels/narrative-panel";
 import { DmTerminalPanel } from "./panels/dm-terminal-panel";
-import { PanelHeaderActions } from "./panel-header-actions";
 import { CommandPalette } from "./command-palette";
 import { useWorkbenchStore } from "@/lib/workbench-store";
 import { useWorkbenchShortcuts } from "@/hooks/use-workbench-shortcuts";
@@ -70,7 +69,6 @@ export function WorkbenchLayout() {
         className="dockview-theme-abyss"
         onReady={onReady}
         components={components}
-        rightHeaderActionsComponent={PanelHeaderActions}
       />
       <CommandPalette />
     </div>
