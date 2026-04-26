@@ -32,6 +32,12 @@ export function formatPrompt(): string {
 }
 
 export function formatWelcome(): string {
-  return `${ANSI.system}Type anything to speak to your Dungeon Master.${ANSI.reset}\r\n` +
-    `${ANSI.dimText}Commands: /roll <dice>, /help, /clear${ANSI.reset}\r\n`;
+  return (
+    `${ANSI.system}DM prep assistant.${ANSI.reset} ${ANSI.dimText}Describe a scene you want to run and I'll sketch it into the Story Boarder and Map Editor.${ANSI.reset}\r\n` +
+    `${ANSI.dimText}Commands: /roll <dice>, /clear, /help${ANSI.reset}\r\n`
+  );
+}
+
+export function formatToolCall(label: string): string {
+  return `${ANSI.dimText}  → ${label}${ANSI.reset}\r\n`;
 }

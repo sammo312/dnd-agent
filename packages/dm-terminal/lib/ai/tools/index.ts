@@ -1,22 +1,50 @@
-import { diceTool } from './dice';
-import { mapQueryTool } from './map-query';
-import { narrativeQueryTool } from './narrative-query';
-import { nameGeneratorTool } from './name-generator';
-import { sceneManagerTool } from './scene-manager';
-import { worldTools } from './world-tools';
+import { diceTool } from "./dice";
+import {
+  dmPrepTools,
+  setSceneContextTool,
+  addCharacterTool,
+  createChapterTool,
+  addDialogueNodeTool,
+  setMapDimensionsTool,
+  paintTerrainTool,
+  addPOITool,
+  type DmPrepToolName,
+} from "./prep-tools";
 
+/**
+ * Tools used by the DM PREP ASSISTANT (workbench/api/chat).
+ *
+ * - `rollDice` runs server-side (pure function, useful in chat too).
+ * - All `dmPrepTools` are CLIENT-SIDE: the model emits the call, the
+ *   AI SDK pauses the loop, and the terminal-shell's `onToolCall`
+ *   applies the mutation to the relevant zustand store
+ *   (story-store, map-store, dm-context-store) and returns a result.
+ */
 export const dmTools = {
   rollDice: diceTool,
-  queryMap: mapQueryTool,
-  queryNarrative: narrativeQueryTool,
-  generateName: nameGeneratorTool,
-  manageScene: sceneManagerTool,
+  ...dmPrepTools,
 };
 
-// Combined tools: game logic + world mutations
-export const allDmTools = {
-  ...dmTools,
-  ...worldTools,
+// Re-export tool names that need client-side handling.
+export const PREP_TOOL_NAMES: DmPrepToolName[] = [
+  "setSceneContext",
+  "addCharacter",
+  "createChapter",
+  "addDialogueNode",
+  "setMapDimensions",
+  "paintTerrain",
+  "addPOI",
+];
+
+export {
+  setSceneContextTool,
+  addCharacterTool,
+  createChapterTool,
+  addDialogueNodeTool,
+  setMapDimensionsTool,
+  paintTerrainTool,
+  addPOITool,
+  diceTool,
 };
 
-export { worldTools };
+export type { DmPrepToolName };

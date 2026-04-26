@@ -1,55 +1,80 @@
 @import "tailwindcss";
 @import "dockview-core/dist/styles/dockview.css";
 
-@source "../../../packages/ui";
-@source "../../../packages/map-editor";
-@source "../../../packages/narrative-editor";
-@source "../../../packages/dm-terminal";
-@source "../../../packages/three-engine";
-@source "../components";
+@source "../packages/ui";
+@source "../packages/map-editor";
+@source "../packages/narrative-editor";
+@source "../packages/dm-terminal";
+@source "../packages/three-engine";
+@source "../apps/workbench";
 
 @custom-variant dark (&:is(.dark *));
 
 /*
  * Design System — The Living Stage
  * Retro-futuristic / warm terminal. Dark-only. Sharp corners.
- * See DESIGN.md for the full token rationale. Mirrors app/globals.css.
+ * See DESIGN.md for the full token rationale.
+ *
+ * Token strategy: the DESIGN.md surface/text tokens are mapped to the
+ * shadcn semantic tokens (--background, --foreground, --card, etc.) so
+ * every component that already consumes those variables snaps into the
+ * warm-terminal palette automatically. The retro accents
+ * (amber phosphor, green, cyan, crimson, violet) are exposed as their own
+ * theme tokens so we can use bg-accent-amber / text-accent-cyan etc.
  */
 :root {
-  --bg-deep:      oklch(0.11 0.01 70);
-  --bg-surface:   oklch(0.15 0.01 70);
-  --bg-elevated:  oklch(0.19 0.01 70);
+  /* --- DESIGN.md surface tokens --- */
+  --bg-deep:      oklch(0.11 0.01 70);   /* scene background, deepest layer */
+  --bg-surface:   oklch(0.15 0.01 70);   /* terminal, panels, cards */
+  --bg-elevated:  oklch(0.19 0.01 70);   /* popovers, hovers, elevated cards */
 
-  --text-primary: oklch(0.88 0.03 80);
-  --text-muted:   oklch(0.50 0.02 70);
-  --text-dim:     oklch(0.35 0.01 70);
+  /* --- DESIGN.md text tokens --- */
+  --text-primary: oklch(0.88 0.03 80);   /* warm off-white */
+  --text-muted:   oklch(0.50 0.02 70);   /* secondary, system messages */
+  --text-dim:     oklch(0.35 0.01 70);   /* placeholders, disabled */
 
-  --accent-amber:   oklch(0.78 0.16 75);
-  --accent-green:   oklch(0.70 0.17 150);
-  --accent-cyan:    oklch(0.68 0.12 195);
-  --accent-crimson: oklch(0.52 0.19 25);
-  --accent-violet:  oklch(0.52 0.14 300);
+  /* --- DESIGN.md accent tokens (CRT phosphor + semantics) --- */
+  --accent-amber:   oklch(0.78 0.16 75);   /* primary accent / phosphor */
+  --accent-green:   oklch(0.70 0.17 150);  /* health, success */
+  --accent-cyan:    oklch(0.68 0.12 195);  /* events, notifications */
+  --accent-crimson: oklch(0.52 0.19 25);   /* damage, errors */
+  --accent-violet:  oklch(0.52 0.14 300);  /* mana, magic */
 
+  /* --- shadcn semantic mapping --- */
   --background: var(--bg-deep);
   --foreground: var(--text-primary);
+
   --card: var(--bg-surface);
   --card-foreground: var(--text-primary);
+
   --popover: var(--bg-elevated);
   --popover-foreground: var(--text-primary);
+
+  /* Primary = amber phosphor — used for CTAs, links, focus rings.
+     Foreground sits on amber, so we want the deep warm bg for legibility. */
   --primary: var(--accent-amber);
   --primary-foreground: var(--bg-deep);
+
+  /* Secondary surfaces (buttons, badges) use the elevated warm gray. */
   --secondary: var(--bg-elevated);
   --secondary-foreground: var(--text-primary);
+
   --muted: var(--bg-elevated);
   --muted-foreground: var(--text-muted);
+
+  /* shadcn's "accent" token = surface-level hover accent, NOT brand accent.
+     The retro brand accents are exposed separately below. */
   --accent: var(--bg-elevated);
   --accent-foreground: var(--text-primary);
+
   --destructive: var(--accent-crimson);
   --destructive-foreground: var(--text-primary);
+
   --border: oklch(0.22 0.01 70);
   --input:  oklch(0.22 0.01 70);
   --ring:   var(--accent-amber);
 
+  /* Sharp-corner-first radius scale. DESIGN.md: sm=2 / md=4 / lg=8. */
   --radius: 0.25rem;
 
   --sidebar: var(--bg-surface);
@@ -61,12 +86,17 @@
   --sidebar-border: oklch(0.22 0.01 70);
   --sidebar-ring: var(--accent-amber);
 
+  /* Narrative editor node colors — warm-shifted to fit the palette. */
   --node-scene:    oklch(0.55 0.14 290);
   --node-dialogue: oklch(0.62 0.13 200);
   --node-choice:   oklch(0.72 0.15 70);
   --connection:    oklch(0.50 0.06 70);
 }
 
+/*
+ * Dark-only product. The .dark class is applied on <html> (see layout.tsx).
+ * We mirror the same tokens so anything querying .dark explicitly still works.
+ */
 .dark {
   --background: var(--bg-deep);
   --foreground: var(--text-primary);
@@ -98,6 +128,7 @@
 }
 
 @theme inline {
+  /* DESIGN.md: Geist Sans for body, JetBrains Mono for display + terminal. */
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
@@ -121,12 +152,14 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  /* Retro brand accents — usable as bg-accent-amber, text-accent-green, etc. */
   --color-accent-amber:   var(--accent-amber);
   --color-accent-green:   var(--accent-green);
   --color-accent-cyan:    var(--accent-cyan);
   --color-accent-crimson: var(--accent-crimson);
   --color-accent-violet:  var(--accent-violet);
 
+  /* Override default radii to match DESIGN.md (sm=2 / md=4 / lg=8). */
   --radius-sm: 2px;
   --radius-md: 4px;
   --radius-lg: 8px;
@@ -158,22 +191,38 @@
     font-family: var(--font-sans);
   }
 
+  /*
+   * DESIGN.md: headers in JetBrains Mono, weight 700.
+   * "monospace as the aesthetic statement"
+   * Components can opt out by setting font-sans on the heading.
+   */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-mono);
     font-weight: 700;
     letter-spacing: -0.01em;
   }
 
+  /*
+   * DESIGN.md: never use uppercase. Strip any leftover uppercase styling.
+   * (Tailwind's `uppercase` class still wins because it's a utility — that
+   * stays the user's responsibility to remove. This catches CSS leakage
+   * from things like dockview/recharts/embla.)
+   */
   .dockview-theme-abyss * {
     text-transform: none !important;
   }
 
+  /* Tabular numbers in mono contexts (data tables, terminal stats). */
   pre, code, kbd, samp, .font-mono {
     font-variant-numeric: tabular-nums;
   }
 }
 
 @layer utilities {
+  /*
+   * CRT phosphor glow — apply only to accent-colored text, never body text.
+   * DESIGN.md: 8px blur, 30% opacity (25% for cyan).
+   */
   .text-glow-amber {
     text-shadow: 0 0 8px oklch(0.78 0.16 75 / 0.30);
   }
@@ -198,6 +247,11 @@
   }
 }
 
+/*
+ * Dockview theme — warm-terminal recolor.
+ * The base abyss theme is too cool/blue. Override its CSS vars to use
+ * the warm OKLCH palette so panel chrome matches the rest of the app.
+ */
 .dockview-theme-abyss {
   --dv-background-color: oklch(0.11 0.01 70);
   --dv-paneview-active-outline-color: oklch(0.78 0.16 75);
@@ -231,11 +285,17 @@
   align-items: center;
 }
 
+/*
+ * Selection: amber phosphor highlight, deep warm text.
+ */
 ::selection {
   background: oklch(0.78 0.16 75 / 0.35);
   color: oklch(0.11 0.01 70);
 }
 
+/*
+ * Scrollbars — warm, thin, terminal-feel.
+ */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
