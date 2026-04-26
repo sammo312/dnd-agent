@@ -32,6 +32,7 @@ import {
 import { ANSI } from "../lib/terminal/ansi";
 import { Picker, type PickerResult } from "../lib/terminal/picker";
 import { formatLinkCard, type LinkSurface } from "../lib/terminal/link-card";
+import { CommandMenu } from "../lib/terminal/command-menu";
 
 export interface TerminalConfig {
   /** API endpoint for chat. Default: "/api/chat" */
@@ -159,6 +160,7 @@ export function TerminalShell({
   const isStreamingRef = useRef(false);
   const promptShownRef = useRef(false);
   const pickerRef = useRef<Picker | null>(null);
+  const commandMenuRef = useRef<CommandMenu | null>(null);
 
   const showPrompt = useCallback(() => {
     if (!promptShownRef.current && !pickerRef.current) {
@@ -691,19 +693,29 @@ export function TerminalShell({
         return;
       }
 
+      // Lazily create the command menu on first keystroke (term is ready).
+      if (!commandMenuRef.current) {
+        commandMenuRef.current = new CommandMenu(term);
+      }
+      const menu = commandMenuRef.current;
+
       const event = inputHandler.processKey(data);
       if (!event) return;
 
       switch (event.type) {
         case "char":
           term.write(event.char);
+          menu.refresh(inputHandler.getBuffer());
           break;
 
         case "backspace":
           term.write("\b \b");
+          menu.refresh(inputHandler.getBuffer());
           break;
 
         case "submit": {
+          // Erase any open menu before the prompt advances.
+          menu.erase(event.line.length);
           term.write("\r\n");
           promptShownRef.current = false;
 
@@ -729,16 +741,31 @@ export function TerminalShell({
 
         case "history-prev":
         case "history-next":
+          // History overwrites the prompt line; close the menu so it doesn't
+          // describe a buffer that's no longer there.
+          menu.erase(event.line.length);
           redrawLine(event.line);
+          menu.refresh(event.line);
           break;
 
         case "interrupt":
+          menu.erase(0);
           term.write("^C\r\n");
           showPrompt();
           break;
 
-        case "tab":
+        case "tab": {
+          const buffer = inputHandler.getBuffer();
+          const completion = menu.complete(buffer);
+          if (!completion) break;
+          const extra = completion.slice(buffer.length);
+          for (const ch of extra) {
+            inputHandler.processKey(ch);
+            term.write(ch);
+          }
+          menu.refresh(inputHandler.getBuffer());
           break;
+        }
       }
     },
     [isLoading, inputHandler, showPrompt, sendToAI, redrawLine, config, commandContext],
