@@ -467,12 +467,17 @@ export function MapEditor() {
     setMapHeight(newHeight)
     setEditorState((prev) => {
       const newCells = createEmptyMap(newWidth, newHeight)
-      for (let y = 0; y < Math.min(prev.cells.length, newHeight); y++) {
-        for (let x = 0; x < Math.min(prev.cells[0].length, newWidth); x++) {
+      const prevH = prev.cells.length
+      const prevW = prev.cells[0]?.length ?? 0
+      for (let y = 0; y < Math.min(prevH, newHeight); y++) {
+        for (let x = 0; x < Math.min(prevW, newWidth); x++) {
           newCells[y][x] = prev.cells[y][x]
         }
       }
+      // Preserve every field on `prev` (narrativeBeats, spawn, anything
+      // future) by spreading first, then overwriting only what resized.
       return {
+        ...prev,
         cells: newCells,
         pois: prev.pois.filter(
           (poi) => poi.x + poi.size.w <= newWidth && poi.y + poi.size.h <= newHeight
@@ -483,6 +488,15 @@ export function MapEditor() {
             pixels: r.pixels.filter((p) => p.x < newWidth && p.y < newHeight),
           }))
           .filter((r) => r.pixels.length > 0),
+        narrativeBeats: prev.narrativeBeats.filter(
+          (b) => b.x < newWidth && b.y < newHeight
+        ),
+        spawn:
+          prev.spawn &&
+          prev.spawn.x < newWidth &&
+          prev.spawn.y < newHeight
+            ? prev.spawn
+            : undefined,
       }
     })
   }
