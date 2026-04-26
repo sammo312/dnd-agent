@@ -188,12 +188,21 @@ export function TerminalShell({
   // between user-submit and first stream chunk, and between a tool
   // result and the model deciding what to do next. Both gaps can
   // run 5-15s when the planner tool fires and used to look like a
-  // hung agent. Lazy-init with a ref so the indicator's timers
-  // outlive React re-renders.
+  // hung agent.
+  //
+  // Init in a mount effect rather than at render-time so React's
+  // strict-mode double-invoke doesn't leave a stray timer on a torn-
+  // down indicator. Callers always go through `?.start/.stop`, so a
+  // null indicator on the very first render is a no-op (and there's
+  // nothing to spin over yet anyway — no message has streamed).
   const thinkingRef = useRef<ThinkingIndicator | null>(null);
-  if (thinkingRef.current === null) {
+  useEffect(() => {
     thinkingRef.current = createThinkingIndicator(termRef);
-  }
+    return () => {
+      thinkingRef.current?.stop();
+      thinkingRef.current = null;
+    };
+  }, []);
 
   const showPrompt = useCallback(() => {
     if (!promptShownRef.current && !pickerRef.current) {
