@@ -90,7 +90,7 @@ export function routeCommand(
       const summary = ctx.exportProject({ force });
       const lines: string[] = [''];
       if (summary.downloaded) {
-        lines.push(formatStatus('exported project — file should be downloading.'));
+        lines.push(formatStatus('exported project.dnd.json — saved to your downloads.'));
       } else if (summary.errorCount > 0) {
         lines.push(formatError(`${summary.errorCount} error(s) blocked export. Re-run with /export --force to download anyway.`));
       } else {
@@ -101,6 +101,11 @@ export function routeCommand(
       }
       for (const w of summary.warnings) {
         lines.push(`${ANSI.dimText}  ⚠ ${w}${ANSI.reset}`);
+      }
+      // Friendly next-step prompt only when the file actually shipped.
+      if (summary.downloaded) {
+        lines.push('');
+        lines.push(`${ANSI.amber}  next →${ANSI.reset} ${ANSI.text}open the player app and drop the file onto its import area.${ANSI.reset}`);
       }
       lines.push('');
       return { output: lines.join('\r\n') };
