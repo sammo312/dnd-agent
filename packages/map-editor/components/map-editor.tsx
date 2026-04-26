@@ -93,9 +93,11 @@ export function MapEditor() {
   // only) so the canvas gets maximum real estate; click any icon to flyout
   // or use the chevron to lock it open.
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(true)
-  // Right panel only renders when something is selected, so it doesn't need
-  // a separate collapse state — its visibility is its collapse.
-  const isRightCollapsed = false
+  // Right panel collapse is user-controlled but auto-driven by selection:
+  // selecting something pops the panel open, clicking off the map (which
+  // clears the selection) collapses it back. The chevron in the panel
+  // header lets the user override either way at any time.
+  const [isRightCollapsed, setIsRightCollapsed] = useState(true)
 
   // History management
   const {
@@ -113,6 +115,31 @@ export function MapEditor() {
   // Narrative schema is fed live by the story boarder via useMapStore.
   const narrativeSchema = useMapStore((s) => s.narrativeSchema) as NarrativeSchema | null
   const [selectedNarrativeBeat, setSelectedNarrativeBeat] = useState<PlacedNarrativeBeat | null>(null)
+
+  // Auto-pop the right panel open whenever any selection lands. We don't
+  // auto-collapse here on deselect — that's handled at the click site
+  // (clearSelection below) so that programmatic clears like Escape and
+  // background-clicks collapse, but transitions between selections (POI
+  // → region) don't flicker the panel closed-then-open.
+  const hasSelection = !!(
+    selectedPlacedPOI ||
+    selectedRegion ||
+    selectedNarrativeBeat ||
+    selectedCell
+  )
+  useEffect(() => {
+    if (hasSelection) setIsRightCollapsed(false)
+  }, [hasSelection])
+
+  // Single source of truth for "click off the map / press Escape /
+  // anything else that should drop selection AND close the panel."
+  const clearSelection = useCallback(() => {
+    setSelectedPlacedPOI(null)
+    setSelectedRegion(null)
+    setSelectedNarrativeBeat(null)
+    setSelectedCell(null)
+    setIsRightCollapsed(true)
+  }, [])
 
   // Hotkey configuration
   useHotkeys([
@@ -149,7 +176,7 @@ export function MapEditor() {
       },
       description: "Delete selected",
     },
-    { key: "Escape", action: () => { setSelectedPlacedPOI(null); setSelectedRegion(null); setSelectedNarrativeBeat(null) }, description: "Deselect" },
+    { key: "Escape", action: clearSelection, description: "Deselect" },
     { key: "1", action: () => setBrushSize(1), description: "Brush size 1" },
     { key: "2", action: () => setBrushSize(2), description: "Brush size 2" },
     { key: "3", action: () => setBrushSize(3), description: "Brush size 3" },
@@ -730,77 +757,92 @@ export function MapEditor() {
           onToggleCollapsed={() => setIsLeftCollapsed((c) => !c)}
         />
 
-{/* Canvas - 2D or 3D */}
-  {viewMode === "2d" ? (
-    <MapCanvas
-      width={mapWidth}
-      height={mapHeight}
-      cells={cells}
-      pois={pois}
-      regions={regions}
-      narrativeBeats={narrativeBeats}
-      selectedTerrain={selectedTerrain}
-      selectedPOI={selectedPOI}
-      activeTool={activeTool}
-      onCellClick={handleCellClick}
-      onCellDrag={paintCell}
-      onPOIDrop={handlePOIDrop}
-      onPOIMove={handlePOIMove}
-      onPOISelect={handlePlacedPOISelect}
-      onPOIDelete={handlePOIDelete}
-      onLassoComplete={handleLassoComplete}
-      onNarrativeBeatDrop={handleNarrativeBeatDrop}
-      onNarrativeBeatMove={handleNarrativeBeatMove}
-      onNarrativeBeatSelect={handleNarrativeBeatSelect}
-      selectedPlacedPOI={selectedPlacedPOI}
-      selectedNarrativeBeat={selectedNarrativeBeat}
-      selectedRegion={selectedRegion}
-      zoom={zoom}
-      showGrid={showGrid}
-      showRegionOverlay={showRegionOverlay}
-      showAssociations={showAssociations}
-      showElevation={showElevation}
-      selectedCell={selectedCell}
-      onCellSelect={handleCellSelect}
-    />
-  ) : (
-    <MapViewer3D
-      width={mapWidth}
-      height={mapHeight}
-      cells={cells}
-      pois={pois}
-      regions={regions}
-      narrativeBeats={narrativeBeats}
-    />
-  )}
-
-        {/* Right Panel — only shown when something is selected */}
-        {(selectedPlacedPOI || selectedRegionData || selectedNarrativeBeat || selectedCell) && (
-          <RightPanel
-            selectedPOI={selectedPlacedPOI}
-            selectedRegion={selectedRegionData}
-            selectedBeat={selectedNarrativeBeat}
-            selectedCell={selectedCell}
+        {/* Canvas — both 2D and 3D stay mounted so toggling the view doesn't
+         * blow away the 2D pan/zoom or the R3F scene's OrbitControls camera.
+         * The hidden surface gets `display:none` (cheaper than unmounting).
+         * `pointer-events-none` on the inactive one belt-and-suspenders any
+         * stray events that would otherwise hit the off-screen layer. */}
+        <div
+          className="flex-1 relative flex"
+          style={{ display: viewMode === "2d" ? "flex" : "none" }}
+        >
+          <MapCanvas
+            width={mapWidth}
+            height={mapHeight}
             cells={cells}
-            narrativeSchema={narrativeSchema}
-            allPOIs={pois}
-            allBeats={narrativeBeats}
-            onRenamePOI={handlePOIRename}
-            onDeletePOI={handlePOIDelete}
-            onRenameRegion={handleRegionRename}
-            onDeleteRegion={handleRegionDelete}
-            onRenameBeat={handleNarrativeBeatRename}
-            onDeleteBeat={handleNarrativeBeatDelete}
-            onUpdatePOIAssociations={handleUpdatePOIAssociations}
-            onUpdateBeatAssociations={handleUpdateBeatAssociations}
-            onUpdatePOIGltfUrl={handleUpdatePOIGltfUrl}
-            onCellElevationChange={handleCellElevationChange}
-            mapWidth={mapWidth}
-            mapHeight={mapHeight}
-            onResizeMap={handleResizeMap}
-            collapsed={isRightCollapsed}
+            pois={pois}
+            regions={regions}
+            narrativeBeats={narrativeBeats}
+            selectedTerrain={selectedTerrain}
+            selectedPOI={selectedPOI}
+            activeTool={activeTool}
+            onCellClick={handleCellClick}
+            onCellDrag={paintCell}
+            onPOIDrop={handlePOIDrop}
+            onPOIMove={handlePOIMove}
+            onPOISelect={handlePlacedPOISelect}
+            onPOIDelete={handlePOIDelete}
+            onLassoComplete={handleLassoComplete}
+            onNarrativeBeatDrop={handleNarrativeBeatDrop}
+            onNarrativeBeatMove={handleNarrativeBeatMove}
+            onNarrativeBeatSelect={handleNarrativeBeatSelect}
+            selectedPlacedPOI={selectedPlacedPOI}
+            selectedNarrativeBeat={selectedNarrativeBeat}
+            selectedRegion={selectedRegion}
+            zoom={zoom}
+            onZoomChange={setZoom}
+            onClearSelection={clearSelection}
+            showGrid={showGrid}
+            showRegionOverlay={showRegionOverlay}
+            showAssociations={showAssociations}
+            showElevation={showElevation}
+            selectedCell={selectedCell}
+            onCellSelect={handleCellSelect}
           />
-        )}
+        </div>
+        <div
+          className="flex-1 relative flex"
+          style={{ display: viewMode === "3d" ? "flex" : "none" }}
+        >
+          <MapViewer3D
+            width={mapWidth}
+            height={mapHeight}
+            cells={cells}
+            pois={pois}
+            regions={regions}
+            narrativeBeats={narrativeBeats}
+          />
+        </div>
+
+        {/* Right Panel — always mounted. Collapses to a thin chevron rail
+         * when nothing is selected, auto-pops open when something is, and
+         * the chevron lets the user override either way. Map size lives
+         * inside it so it's always reachable via expand. */}
+        <RightPanel
+          selectedPOI={selectedPlacedPOI}
+          selectedRegion={selectedRegionData}
+          selectedBeat={selectedNarrativeBeat}
+          selectedCell={selectedCell}
+          cells={cells}
+          narrativeSchema={narrativeSchema}
+          allPOIs={pois}
+          allBeats={narrativeBeats}
+          onRenamePOI={handlePOIRename}
+          onDeletePOI={handlePOIDelete}
+          onRenameRegion={handleRegionRename}
+          onDeleteRegion={handleRegionDelete}
+          onRenameBeat={handleNarrativeBeatRename}
+          onDeleteBeat={handleNarrativeBeatDelete}
+          onUpdatePOIAssociations={handleUpdatePOIAssociations}
+          onUpdateBeatAssociations={handleUpdateBeatAssociations}
+          onUpdatePOIGltfUrl={handleUpdatePOIGltfUrl}
+          onCellElevationChange={handleCellElevationChange}
+          mapWidth={mapWidth}
+          mapHeight={mapHeight}
+          onResizeMap={handleResizeMap}
+          collapsed={isRightCollapsed}
+          onToggleCollapsed={() => setIsRightCollapsed((c) => !c)}
+        />
       </div>
     </div>
   )

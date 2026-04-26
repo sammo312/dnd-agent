@@ -138,15 +138,17 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
         terminalRef.current = terminal;
         fitAddonRef.current = fitAddon;
 
-        // ResizeObserver covers dockview panel drag-resizes (which never
-        // fire `window.resize`), browser zoom, and devtools toggles in
-        // one shot. Falls back to window.resize if RO isn't available.
+        // ResizeObserver covers dockview panel drag-resizes and other
+        // container size changes that never fire `window.resize`. We ALSO
+        // keep the `window.resize` listener active so consumers like the
+        // player drawer (which dispatches `new Event("resize")` after the
+        // drawer animation lands) can still nudge a refit. fitAddon.fit()
+        // is idempotent so doubling up is safe.
         if (typeof ResizeObserver !== "undefined" && containerRef.current) {
           resizeObserver = new ResizeObserver(() => handleResize());
           resizeObserver.observe(containerRef.current);
-        } else {
-          window.addEventListener("resize", handleResize);
         }
+        window.addEventListener("resize", handleResize);
         terminal.focus();
 
         // Notify the shell that xterm is mounted and writable. This must

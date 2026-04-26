@@ -50,13 +50,6 @@ export function MapViewer3D({
         />
       </Canvas>
 
-      <div className="absolute bottom-4 left-4 bg-background/80 backdrop-blur-sm px-3 py-2 rounded-lg text-xs text-muted-foreground border">
-        Left-click + drag to rotate | Right-click + drag to pan | Scroll to zoom
-      </div>
-
-      <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur-sm px-3 py-2 rounded-lg text-xs font-mono border">
-        {width} x {height} | {pois.length} POIs | {narrativeBeats.length} Beats
-      </div>
     </div>
   )
 }

@@ -233,9 +233,11 @@ export function LeftPanel({
     }
   }
 
-  // Panel content (shared between inline and flyout)
+  // Panel content (shared between inline and flyout). `min-h-0` lets the
+  // ScrollArea actually scroll inside a flex column — without it the
+  // viewport grows to content height and the panel never overflows.
   const panelContent = (
-    <ScrollArea className="flex-1">
+    <ScrollArea className="flex-1 min-h-0">
       <div className="p-2">
         {/* Layers Tab */}
         {activeTab === "layers" && (

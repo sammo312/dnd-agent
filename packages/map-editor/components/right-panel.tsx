@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import type {
   PlacedPOI,
   NamedRegion,
@@ -46,11 +46,27 @@ import {
   Mountain,
   ChevronUp,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Box,
   Upload,
   Link,
 } from "lucide-react"
 import { cn } from "@dnd-agent/ui/lib/utils"
+
+/**
+ * Map size presets — Figma-frame style, named for the kind of scene each
+ * size suits rather than abstract S/M/L. Cells are roughly 5ft each, so
+ * these correspond to: a tactical encounter pad, a small town or dungeon
+ * level, a hex of regional travel, and a full overworld. Custom sizes
+ * (and anything between) are still available via the W × H inputs.
+ */
+const SIZE_PRESETS: ReadonlyArray<{ label: string; w: number; h: number }> = [
+  { label: "Encounter", w: 20, h: 20 },
+  { label: "Town", w: 40, h: 40 },
+  { label: "Region", w: 60, h: 60 },
+  { label: "World", w: 100, h: 100 },
+]
 
 interface RightPanelProps {
   selectedPOI: PlacedPOI | null
@@ -75,6 +91,7 @@ interface RightPanelProps {
   mapHeight: number
   onResizeMap: (width: number, height: number) => void
   collapsed?: boolean
+  onToggleCollapsed?: () => void
 }
 
 const allTerrains = [...naturalTerrains, ...humanMadeTerrains]
@@ -102,14 +119,13 @@ export function RightPanel({
   mapHeight,
   onResizeMap,
   collapsed = false,
+  onToggleCollapsed,
 }: RightPanelProps) {
   const [poiName, setPoiName] = useState(selectedPOI?.name || "")
   const [regionName, setRegionName] = useState(selectedRegion?.name || "")
   const [beatName, setBeatName] = useState(selectedBeat?.name || "")
   const [newWidth, setNewWidth] = useState(mapWidth)
   const [newHeight, setNewHeight] = useState(mapHeight)
-  const [flyoutOpen, setFlyoutOpen] = useState(false)
-  const flyoutRef = useRef<HTMLDivElement>(null)
 
   // Update local state when selection changes
   useEffect(() => {
@@ -123,23 +139,6 @@ export function RightPanel({
   useEffect(() => {
     setBeatName(selectedBeat?.name || "")
   }, [selectedBeat?.id, selectedBeat?.name])
-
-  // Close flyout when clicking outside
-  useEffect(() => {
-    if (!flyoutOpen) return
-    const handleMouseDown = (e: MouseEvent) => {
-      if (flyoutRef.current && !flyoutRef.current.contains(e.target as Node)) {
-        setFlyoutOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleMouseDown)
-    return () => document.removeEventListener("mousedown", handleMouseDown)
-  }, [flyoutOpen])
-
-  // Close flyout when uncollapsing
-  useEffect(() => {
-    if (!collapsed) setFlyoutOpen(false)
-  }, [collapsed])
 
   const handlePOINameChange = (name: string) => {
     setPoiName(name)
@@ -278,41 +277,112 @@ export function RightPanel({
   // Shared panel content
   const panelContent = (
     <>
-      <div className="p-3 border-b">
+      <div className="px-2 py-1.5 border-b flex items-center gap-1">
+        {onToggleCollapsed && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onToggleCollapsed}
+                className="h-7 w-7 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                aria-label="Collapse panel"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Collapse panel</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
         <h2 className="text-sm font-semibold flex items-center gap-2">
           <Settings2 className="h-4 w-4" />
-          Properties
+          {hasSelection ? "Properties" : "Map"}
         </h2>
       </div>
 
-      <ScrollArea className="flex-1">
+      {/* `min-h-0` is the critical bit: a flex child defaults to
+       * `min-height: auto`, which means `flex-1` can't shrink below the
+       * content size — and since Radix ScrollArea's Root doesn't have
+       * `overflow: hidden`, the viewport grew to its content height
+       * instead of overflowing. With `min-h-0` the viewport is finally
+       * bounded by the panel and can scroll. */}
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-4">
-          {/* Map Settings */}
-          <div className="space-y-3">
+          {/* Map size — Figma frame–style picker. Preset chips for the
+           * common cases, custom W×H inputs underneath for anything in
+           * between, plus an inline Apply button that only appears when
+           * the staged size differs from the live map. Cap raised to 200
+           * (40k cells) — 2D handles it fine; 3D gets sluggish past
+           * ~120, since each cell is its own mesh. */}
+          <div className="space-y-2.5">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Map Size
+              Map size
             </h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
+              {SIZE_PRESETS.map((preset) => {
+                const isActive =
+                  newWidth === preset.w && newHeight === preset.h
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setNewWidth(preset.w)
+                      setNewHeight(preset.h)
+                    }}
+                    className={cn(
+                      "text-left px-2 py-1.5 rounded border text-xs transition-colors",
+                      isActive
+                        ? "border-primary/60 bg-primary/10"
+                        : "border-border hover:border-muted-foreground/40 hover:bg-muted/40"
+                    )}
+                  >
+                    <div className="font-medium text-foreground leading-tight">
+                      {preset.label}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground tabular-nums leading-tight mt-0.5">
+                      {preset.w} × {preset.h}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-1.5">
               <div className="space-y-1">
-                <Label className="text-xs">Width</Label>
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  W
+                </Label>
                 <Input
                   type="number"
                   value={newWidth}
                   onChange={(e) =>
-                    setNewWidth(Math.max(5, Math.min(100, Number(e.target.value))))
+                    setNewWidth(
+                      Math.max(5, Math.min(200, Number(e.target.value) || 5))
+                    )
                   }
-                  className="h-8 text-sm"
+                  className="h-8 text-sm tabular-nums"
+                  min={5}
+                  max={200}
                 />
               </div>
+              <div className="text-muted-foreground/50 text-xs pb-2 select-none">
+                ×
+              </div>
               <div className="space-y-1">
-                <Label className="text-xs">Height</Label>
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  H
+                </Label>
                 <Input
                   type="number"
                   value={newHeight}
                   onChange={(e) =>
-                    setNewHeight(Math.max(5, Math.min(100, Number(e.target.value))))
+                    setNewHeight(
+                      Math.max(5, Math.min(200, Number(e.target.value) || 5))
+                    )
                   }
-                  className="h-8 text-sm"
+                  className="h-8 text-sm tabular-nums"
+                  min={5}
+                  max={200}
                 />
               </div>
             </div>
@@ -322,9 +392,15 @@ export function RightPanel({
                 className="w-full"
                 onClick={() => onResizeMap(newWidth, newHeight)}
               >
-                <Maximize2 className="h-3.5 w-3.5 mr-1" />
-                Apply Size
+                <Maximize2 className="h-3.5 w-3.5 mr-1.5" />
+                Apply {newWidth} × {newHeight}
               </Button>
+            )}
+            {newWidth * newHeight > 14400 && (
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Large maps may slow the 3D preview — 2D editing is still
+                smooth.
+              </p>
             )}
           </div>
 
@@ -833,53 +909,46 @@ export function RightPanel({
     </>
   )
 
-  // Collapsed mode: icon strip + flyout
+  // Collapsed mode: thin chevron rail mirroring the left panel.
+  // Auto-expand on selection (handled by the parent) covers the old
+  // flyout pattern; the chevron lets the user manually re-expand.
+  // The selection dot is still useful as an at-a-glance hint that
+  // something is selected even while the panel is collapsed.
   if (collapsed) {
     return (
       <TooltipProvider delayDuration={0}>
-        <div className="w-10 border-l bg-background flex flex-col items-center shrink-0">
-          {/* Single icon button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setFlyoutOpen(!flyoutOpen)}
-                className={cn(
-                  "w-8 h-8 mt-2 rounded flex items-center justify-center transition-colors relative",
-                  flyoutOpen
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                )}
-              >
-                <Settings2 className="h-4 w-4" />
-                {/* Colored dot when something is selected */}
-                {hasSelection && (
-                  <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-primary" />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Properties</p>
-            </TooltipContent>
-          </Tooltip>
-
-          {/* Flyout overlay */}
-          {flyoutOpen && (
-            <div
-              ref={flyoutRef}
-              className="absolute right-10 top-0 bottom-0 w-72 z-30 bg-background border-l shadow-lg flex flex-col"
-            >
-              {panelContent}
-            </div>
+        <div className="w-10 border-l bg-background flex flex-col shrink-0">
+          {onToggleCollapsed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggleCollapsed}
+                  className="h-8 mx-1 mt-1 mb-0.5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors relative"
+                  aria-label="Expand panel"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {hasSelection && (
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>{hasSelection ? "Show properties" : "Map settings"}</p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </TooltipProvider>
     )
   }
 
-  // Expanded mode: full panel
+  // Expanded mode: full panel. Wrapped in TooltipProvider so the
+  // collapse-chevron tooltip in the header works.
   return (
-    <div className="w-72 border-l bg-background flex flex-col shrink-0">
-      {panelContent}
-    </div>
+    <TooltipProvider delayDuration={0}>
+      <div className="w-72 border-l bg-background flex flex-col shrink-0">
+        {panelContent}
+      </div>
+    </TooltipProvider>
   )
 }
