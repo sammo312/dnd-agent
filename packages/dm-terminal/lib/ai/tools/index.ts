@@ -1,4 +1,5 @@
 import { diceTool } from "./dice";
+import { plannerTool } from "./planner-tool";
 import {
   dmPrepTools,
   setSceneContextTool,
@@ -17,6 +18,9 @@ import {
  * Tools used by the DM PREP ASSISTANT (workbench/api/chat).
  *
  * - `rollDice` runs server-side (pure function, useful in chat too).
+ * - `planNarrative` runs server-side too — it escalates to a more
+ *   capable model (Sonnet) for creatively-loaded requests and returns
+ *   a design brief the executor (Haiku) translates into tool calls.
  * - All `dmPrepTools` are CLIENT-SIDE: the model emits the call, the
  *   AI SDK pauses the loop, and the terminal-shell's `onToolCall`
  *   applies the mutation to the relevant zustand store
@@ -24,6 +28,7 @@ import {
  */
 export const dmTools = {
   rollDice: diceTool,
+  planNarrative: plannerTool,
   ...dmPrepTools,
 };
 
