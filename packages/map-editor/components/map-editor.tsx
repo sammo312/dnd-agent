@@ -21,7 +21,6 @@ import { generatePOIName, generateRegionName } from "../lib/name-generator"
 import { useHistory } from "../hooks/use-history"
 import { useHotkeys } from "../hooks/use-hotkeys"
 import { useMapStore } from "../lib/map-store"
-import { useContainerSize } from "@dnd-agent/ui/hooks/use-container-size"
 import { EditorToolbar, type EditorTool } from "./editor-toolbar"
   import { LeftPanel } from "./left-panel"
   import { RightPanel } from "./right-panel"
@@ -87,34 +86,16 @@ export function MapEditor() {
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null)
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d")
 
-  // Responsive container sizing
+  // Container ref kept for any future container-size needs (3D viewer, etc).
   const containerRef = useRef<HTMLDivElement>(null)
-  const { width: containerWidth } = useContainerSize(containerRef)
 
-  // Auto-collapse breakpoints with manual override
-  const [leftPanelPinned, setLeftPanelPinned] = useState<boolean | null>(null)
-  const [rightPanelPinned, setRightPanelPinned] = useState<boolean | null>(null)
-
-  const autoLeftCollapsed = containerWidth > 0 && containerWidth < 900
-  const autoRightCollapsed = containerWidth > 0 && containerWidth < 700
-
-  const isLeftCollapsed = leftPanelPinned !== null ? !leftPanelPinned : autoLeftCollapsed
-  const isRightCollapsed = rightPanelPinned !== null ? !rightPanelPinned : autoRightCollapsed
-  const isCompactToolbar = containerWidth > 0 && containerWidth < 700
-
-  // Reset pin state when crossing breakpoint boundaries
-  const prevAutoLeftRef = useRef(autoLeftCollapsed)
-  const prevAutoRightRef = useRef(autoRightCollapsed)
-  useEffect(() => {
-    if (prevAutoLeftRef.current !== autoLeftCollapsed) {
-      setLeftPanelPinned(null)
-      prevAutoLeftRef.current = autoLeftCollapsed
-    }
-    if (prevAutoRightRef.current !== autoRightCollapsed) {
-      setRightPanelPinned(null)
-      prevAutoRightRef.current = autoRightCollapsed
-    }
-  }, [autoLeftCollapsed, autoRightCollapsed])
+  // User-controlled left panel collapse. Defaults to collapsed (icon rail
+  // only) so the canvas gets maximum real estate; click any icon to flyout
+  // or use the chevron to lock it open.
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(true)
+  // Right panel only renders when something is selected, so it doesn't need
+  // a separate collapse state — its visibility is its collapse.
+  const isRightCollapsed = false
 
   // History management
   const {
@@ -125,8 +106,6 @@ export function MapEditor() {
     reset: resetHistory,
     canUndo,
     canRedo,
-    historyLength,
-    futureLength,
   } = useHistory<EditorState>(createInitialState(DEFAULT_WIDTH, DEFAULT_HEIGHT))
 
   const { cells, pois, regions, narrativeBeats } = editorState
@@ -683,32 +662,6 @@ export function MapEditor() {
 
   return (
     <div ref={containerRef} className="h-full flex flex-col bg-background">
-      {/* View Mode Toggle */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50">
-        <div className="flex items-center bg-background/95 backdrop-blur-sm rounded-full border shadow-lg p-1">
-          <button
-            onClick={() => setViewMode("2d")}
-            className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
-              viewMode === "2d"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            2D
-          </button>
-          <button
-            onClick={() => setViewMode("3d")}
-            className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors ${
-              viewMode === "3d"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            3D
-          </button>
-        </div>
-      </div>
-
       {/* Top Toolbar */}
       <EditorToolbar
         activeTool={activeTool}
@@ -718,8 +671,6 @@ export function MapEditor() {
         onUndo={undo}
         onRedo={redo}
         zoom={zoom}
-        onZoomIn={() => setZoom((z) => Math.min(3, z + 0.1))}
-        onZoomOut={() => setZoom((z) => Math.max(0.25, z - 0.1))}
         onZoomReset={() => setZoom(1)}
         showGrid={showGrid}
         onToggleGrid={() => setShowGrid((s) => !s)}
@@ -730,9 +681,8 @@ export function MapEditor() {
         showElevation={showElevation}
         onToggleElevation={() => setShowElevation((s) => !s)}
         onClear={handleClear}
-        historyLength={historyLength}
-        futureLength={futureLength}
-        compact={isCompactToolbar}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       {/* Main Content */}
@@ -763,6 +713,7 @@ export function MapEditor() {
           onRenameBeat={handleNarrativeBeatRename}
           onDeleteBeat={handleNarrativeBeatDelete}
           collapsed={isLeftCollapsed}
+          onToggleCollapsed={() => setIsLeftCollapsed((c) => !c)}
         />
 
 {/* Canvas - 2D or 3D */}
