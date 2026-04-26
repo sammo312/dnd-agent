@@ -4,6 +4,7 @@ import type { IDockviewPanelProps } from "dockview-react";
 import dynamic from "next/dynamic";
 import { useCallback } from "react";
 import { useWorkbenchStore } from "../../lib/workbench-store";
+import { PanelErrorBoundary } from "./panel-error-boundary";
 
 const TerminalShell = dynamic(
   () => import("@dnd-agent/dm-terminal").then((m) => m.TerminalShell),
@@ -47,7 +48,9 @@ export const DmTerminalPanel: React.FC<IDockviewPanelProps> = () => {
 
   return (
     <div className="h-full w-full bg-background">
-      <TerminalShell onOpenSurface={handleOpenSurface} />
+      <PanelErrorBoundary panelName="DM Terminal">
+        <TerminalShell onOpenSurface={handleOpenSurface} />
+      </PanelErrorBoundary>
     </div>
   );
 };
