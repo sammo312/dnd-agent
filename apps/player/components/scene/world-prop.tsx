@@ -17,25 +17,30 @@
  *     organically (within 5 tiles).
  */
 
-import { Suspense, useMemo, useRef } from "react";
+import { memo, Suspense, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Billboard, Html, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
-import {
-  FencePost,
-  RunescapeBush,
-  RunescapeRock,
-  RunescapeTree,
-} from "@dnd-agent/three-engine";
+import { FencePost } from "@dnd-agent/three-engine";
 import type { ExportedMapCell, ExportedPOI } from "@dnd-agent/shared";
+
+import { StylizedTree } from "./props/stylized-tree";
+import { StylizedRock } from "./props/stylized-rock";
+import { StylizedBush } from "./props/stylized-bush";
+import { StylizedCottage } from "./props/stylized-cottage";
+import { distanceToPlayerSq } from "@/lib/three/player-position-ref";
 
 interface WorldPropProps {
   poi: ExportedPOI;
   cells: ExportedMapCell[][];
-  /** Player position in world space — drives label fade. */
-  playerPosition: [number, number, number];
 }
+
+/** Beyond this radius, prop wind animation is skipped entirely. */
+const WIND_CULL_RADIUS_SQ = 24 * 24;
+/** Within this radius, the proximity label is drawn. */
+const LABEL_RADIUS = 5;
+const LABEL_RADIUS_SQ = LABEL_RADIUS * LABEL_RADIUS;
 
 type PropKind = "tree" | "rock" | "bush" | "fence" | "building" | "icon";
 
@@ -71,37 +76,127 @@ function GLTFModel({ url, scale = 0.5 }: { url: string; scale?: number }) {
   return <primitive object={cloned} scale={scale} />;
 }
 
-/** Tiny procedural cottage — flat-shaded, matches the Runescape props. */
-function ProceduralBuilding({ size }: { size: { w: number; h: number } }) {
-  const w = Math.max(0.8, size.w * 0.9);
-  const d = Math.max(0.8, size.h * 0.9);
-  const wallH = 0.9;
-  const roofH = 0.6;
+/**
+ * Deterministic small-state PRNG. Same seed in → same numbers out,
+ * so a "tree" POI lays out the same on every render and a forest of
+ * trees doesn't shimmer when the camera pans.
+ */
+function mulberry32(seed: number) {
+  let t = seed >>> 0;
+  return () => {
+    t = (t + 0x6d2b79f5) >>> 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashString(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return h >>> 0;
+}
+
+/**
+ * Three trees in a tight cluster, with stable random offsets and a
+ * gentle wind sway on the whole group. A single tree reads as "demo
+ * art"; three at varied scales read as "a real spot in the world".
+ */
+function TreeCluster({
+  scale,
+  seed,
+  worldX,
+  worldZ,
+}: {
+  scale: number;
+  seed: number;
+  /** World coords of the cluster, used to skip wind when far away. */
+  worldX: number;
+  worldZ: number;
+}) {
+  const rootRef = useRef<THREE.Group>(null);
+
+  const offsets = useMemo(() => {
+    const rng = mulberry32(seed);
+    // Each child gets its own seed so canopy color jitter varies
+    // per-tree even within a single cluster.
+    return [
+      {
+        x: 0,
+        z: 0,
+        s: scale,
+        phase: rng() * Math.PI * 2,
+        childSeed: (seed * 31 + 1) >>> 0,
+      },
+      {
+        x: (rng() - 0.5) * 1.4,
+        z: (rng() - 0.5) * 1.4,
+        s: scale * (0.55 + rng() * 0.25),
+        phase: rng() * Math.PI * 2,
+        childSeed: (seed * 31 + 2) >>> 0,
+      },
+      {
+        x: (rng() - 0.5) * 1.6,
+        z: (rng() - 0.5) * 1.6,
+        s: scale * (0.45 + rng() * 0.25),
+        phase: rng() * Math.PI * 2,
+        childSeed: (seed * 31 + 3) >>> 0,
+      },
+    ];
+  }, [scale, seed]);
+
+  // Wind: a slow lean on the whole cluster, plus per-tree phase so
+  // they don't sway in lockstep. Small angles only — anything more
+  // than a few degrees and trees start to look like jelly.
+  //
+  // Distance-culled: if the player is more than ~24 tiles away the
+  // sway is invisible at standard FOV anyway, so we skip the
+  // matrix updates entirely. With ~50+ tree POIs this is the
+  // difference between a smooth pan and a jittery one on integrated
+  // GPUs.
+  useFrame((state) => {
+    if (!rootRef.current) return;
+    if (distanceToPlayerSq(worldX, worldZ) > WIND_CULL_RADIUS_SQ) return;
+    const t = state.clock.elapsedTime;
+    rootRef.current.children.forEach((child, i) => {
+      const phase = offsets[i]?.phase ?? 0;
+      child.rotation.z = Math.sin(t * 0.7 + phase) * 0.035;
+      child.rotation.x = Math.cos(t * 0.5 + phase) * 0.02;
+    });
+  });
+
   return (
-    <group>
-      <mesh position={[0, wallH / 2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[w, wallH, d]} />
-        <meshStandardMaterial color="#a1856b" flatShading />
-      </mesh>
-      <mesh position={[0, wallH + roofH / 2, 0]} castShadow>
-        <coneGeometry args={[Math.max(w, d) * 0.75, roofH, 4]} />
-        <meshStandardMaterial color="#5c3a1e" flatShading />
-      </mesh>
-      <mesh position={[0, 0.35, d / 2 + 0.01]}>
-        <planeGeometry args={[0.25, 0.45]} />
-        <meshStandardMaterial color="#2a1a10" />
-      </mesh>
+    <group ref={rootRef}>
+      {offsets.map((o, i) => (
+        <StylizedTree
+          key={i}
+          position={[o.x, 0, o.z]}
+          scale={o.s}
+          seed={o.childSeed}
+        />
+      ))}
     </group>
   );
 }
 
-/** Last-resort grounded icon. Floats subtly so it's not a static decal. */
-function IconSprite({ poi }: { poi: ExportedPOI }) {
+/**
+ * Last-resort grounded icon. Floats subtly so it's not a static decal.
+ * Distance-culls the bob animation so a hundred icon POIs don't each
+ * burn a frame on a sin() every tick.
+ */
+function IconSprite({
+  poi,
+  worldX,
+  worldZ,
+}: {
+  poi: ExportedPOI;
+  worldX: number;
+  worldZ: number;
+}) {
   const ref = useRef<THREE.Group>(null);
   useFrame((state) => {
     if (!ref.current) return;
-    // Slow vertical bob on the wrapper group; Billboard inside it
-    // continues to face the camera regardless.
+    if (distanceToPlayerSq(worldX, worldZ) > WIND_CULL_RADIUS_SQ) return;
     ref.current.position.y =
       0.6 + Math.sin(state.clock.elapsedTime * 1.2) * 0.05;
   });
@@ -121,7 +216,7 @@ function IconSprite({ poi }: { poi: ExportedPOI }) {
   );
 }
 
-export function WorldProp({ poi, cells, playerPosition }: WorldPropProps) {
+function WorldPropImpl({ poi, cells }: WorldPropProps) {
   const groupRef = useRef<THREE.Group>(null);
 
   const posX = poi.x + poi.size.w / 2;
@@ -136,21 +231,36 @@ export function WorldProp({ poi, cells, playerPosition }: WorldPropProps) {
 
   // Stable but varied scale so a forest of trees doesn't look like a
   // photocopy. Hash from the POI id.
+  const seed = useMemo(() => hashString(poi.id), [poi.id]);
   const scale = useMemo(() => {
-    let h = 0;
-    for (let i = 0; i < poi.id.length; i++) h = (h * 31 + poi.id.charCodeAt(i)) | 0;
-    const norm = ((h >>> 0) % 1000) / 1000;
+    const norm = (seed % 1000) / 1000;
     return 0.85 + norm * 0.4; // 0.85..1.25
-  }, [poi.id]);
+  }, [seed]);
 
   const kind = useMemo(() => classifyPOI(poi), [poi]);
 
-  // Distance-gated label. Prevents the world from looking like a menu
-  // unless the player is right next to a thing.
-  const dx = playerPosition[0] - (poi.x + poi.size.w / 2);
-  const dz = playerPosition[2] - (poi.y + poi.size.h / 2);
-  const playerDist = Math.sqrt(dx * dx + dz * dz);
-  const showLabel = playerDist < 5;
+  // Proximity label visibility, polled in useFrame against a shared
+  // ref instead of via a `playerPosition` prop. This is the perf win:
+  //   - WorldProp no longer re-renders on every step (parent state
+  //     changes don't flow into us);
+  //   - we only call setState (which DOES re-render) on the *frames
+  //     where the label crosses the visibility threshold*, which is
+  //     rare. Within-radius and out-of-radius are both stable cases.
+  const labelRef = useRef<HTMLDivElement | null>(null);
+  const [labelVisible, setLabelVisible] = useState(false);
+  useFrame(() => {
+    const dSq = distanceToPlayerSq(posX, posZ);
+    const inside = dSq < LABEL_RADIUS_SQ;
+    if (inside !== labelVisible) setLabelVisible(inside);
+    // Mutate opacity on the actual DOM node — keeps the fade smooth
+    // without re-rendering the React tree on every frame.
+    if (inside && labelRef.current) {
+      const dist = Math.sqrt(dSq);
+      labelRef.current.style.opacity = String(
+        Math.max(0, Math.min(1, (LABEL_RADIUS - dist) / 1.5)),
+      );
+    }
+  });
 
   return (
     <group ref={groupRef} position={[posX, elevation, posZ]}>
@@ -166,20 +276,20 @@ export function WorldProp({ poi, cells, playerPosition }: WorldPropProps) {
           <GLTFModel url={poi.gltfUrl} scale={0.5 * scale} />
         </Suspense>
       ) : kind === "tree" ? (
-        <RunescapeTree position={[0, 0, 0]} scale={scale} />
+        <TreeCluster scale={scale} seed={seed} worldX={posX} worldZ={posZ} />
       ) : kind === "rock" ? (
-        <RunescapeRock position={[0, 0, 0]} scale={scale} />
+        <StylizedRock scale={scale} seed={seed} />
       ) : kind === "bush" ? (
-        <RunescapeBush position={[0, 0, 0]} scale={scale} />
+        <StylizedBush scale={scale} seed={seed} />
       ) : kind === "fence" ? (
         <FencePost position={[0, 0, 0]} />
       ) : kind === "building" ? (
-        <ProceduralBuilding size={poi.size} />
+        <StylizedCottage size={poi.size} />
       ) : (
-        <IconSprite poi={poi} />
+        <IconSprite poi={poi} worldX={posX} worldZ={posZ} />
       )}
 
-      {showLabel && (
+      {labelVisible && (
         <Html
           position={[0, 1.6, 0]}
           center
@@ -187,6 +297,7 @@ export function WorldProp({ poi, cells, playerPosition }: WorldPropProps) {
           style={{ pointerEvents: "none" }}
         >
           <div
+            ref={labelRef}
             className="whitespace-nowrap rounded-none border px-2 py-0.5 text-[10px] tracking-wide shadow-md"
             style={{
               fontFamily:
@@ -194,7 +305,7 @@ export function WorldProp({ poi, cells, playerPosition }: WorldPropProps) {
               background: "rgba(24, 24, 27, 0.85)",
               color: "#e4e4e7",
               borderColor: "rgba(82, 82, 91, 0.6)",
-              opacity: Math.max(0, Math.min(1, (5 - playerDist) / 1.5)),
+              opacity: 1,
             }}
           >
             {poi.name}
@@ -204,3 +315,14 @@ export function WorldProp({ poi, cells, playerPosition }: WorldPropProps) {
     </group>
   );
 }
+
+/**
+ * `React.memo` is what ties this all together: now that the player
+ * position no longer flows through props, the only things that can
+ * change for a given POI are its definition and the cell grid. Both
+ * are stable across walking frames, so memo keeps the component
+ * mount-once after first render.
+ */
+export const WorldProp = memo(WorldPropImpl, (prev, next) => {
+  return prev.poi === next.poi && prev.cells === next.cells;
+});
