@@ -8,8 +8,10 @@ import { ProjectImportScreen } from "@/components/project-import-screen";
 import { ProjectLoadedSummary } from "@/components/project-loaded-summary";
 import { DialogueOverlay } from "@/components/dialogue/dialogue-overlay";
 import { PlayerHud } from "@/components/scene/player-hud";
+import { TouchControls } from "@/components/touch/touch-controls";
 import { useProjectStore } from "@/lib/project/project-store";
 import { useNarrativeStore } from "@/lib/narrative/narrative-store";
+import { useTouchDevice } from "@/lib/input/use-touch-device";
 
 const PlayerView = dynamic(() => import("@/components/player-scene"), {
   ssr: false,
@@ -80,9 +82,19 @@ export default function Home() {
  */
 function SceneStage() {
   const project = useProjectStore((s) => s.project);
+  const isTouch = useTouchDevice();
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isFirstPerson, setIsFirstPerson] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleExitFirstPerson = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("exitFirstPerson"));
+    if (containerRef.current) {
+      const scrollHeight =
+        containerRef.current.scrollHeight - window.innerHeight;
+      window.scrollTo({ top: scrollHeight * 0.7, behavior: "smooth" });
+    }
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -108,21 +120,29 @@ function SceneStage() {
     setIsFirstPerson(active);
   }, []);
 
+  // Flip a body class on/off so global CSS can switch the canvas's
+  // touch-action + page overscroll behavior. We only want to lock
+  // the page out of touch gestures while the player is *actively*
+  // walking around — during the scroll-driven intro the body needs
+  // to remain pannable so a swipe still scrolls the page.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const cls = "fps-active";
+    if (isFirstPerson) document.body.classList.add(cls);
+    else document.body.classList.remove(cls);
+    return () => document.body.classList.remove(cls);
+  }, [isFirstPerson]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isFirstPerson) {
-        window.dispatchEvent(new CustomEvent("exitFirstPerson"));
-        if (containerRef.current) {
-          const scrollHeight =
-            containerRef.current.scrollHeight - window.innerHeight;
-          window.scrollTo({ top: scrollHeight * 0.7, behavior: "smooth" });
-        }
+        handleExitFirstPerson();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFirstPerson]);
+  }, [isFirstPerson, handleExitFirstPerson]);
 
   // The import gate above guarantees a project is loaded before we
   // mount this stage, but TypeScript can't see that across the store
@@ -144,13 +164,23 @@ function SceneStage() {
       </div>
 
       {/* HUD overlays */}
-      <ScrollHint visible={scrollProgress <= 0.05 && !isFirstPerson} />
-      <ControlsHint visible={isFirstPerson} />
+      <ScrollHint
+        visible={scrollProgress <= 0.05 && !isFirstPerson}
+        isTouch={isTouch}
+      />
+      {/* Keyboard hint — desktop only. */}
+      <ControlsHint visible={isFirstPerson && !isTouch} />
+
+      {/* Mobile control surface — joystick, look-drag, exit button. */}
+      <TouchControls
+        active={isFirstPerson && isTouch}
+        onExit={handleExitFirstPerson}
+      />
 
       {/* In-world reticle + "Approaching: …" beat indicator. Hides
           itself while a dialogue is up so it doesn't fight the
           overlay UI. */}
-      <PlayerHud active={isFirstPerson} />
+      <PlayerHud active={isFirstPerson} isTouch={isTouch} />
 
       {/* Player CLI drawer */}
       <PlayerCliDrawer />

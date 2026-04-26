@@ -28,6 +28,7 @@ import type {
   ExportedProject,
 } from "@dnd-agent/shared";
 import { useNarrativeStore } from "@/lib/narrative/narrative-store";
+import { useTouchDevice } from "@/lib/input/use-touch-device";
 
 interface DialogueOverlayProps {
   project: ExportedProject;
@@ -73,6 +74,7 @@ function DialogueRunner({
   onClose,
 }: DialogueRunnerProps) {
   const segments = node.dialogue;
+  const isTouch = useTouchDevice();
 
   const totalChars = useMemo(
     () => segments.reduce((acc, seg) => acc + seg.text.length, 0),
@@ -194,8 +196,9 @@ function DialogueRunner({
             onClick={onClose}
             aria-label="Close dialogue"
             className="font-mono text-[10px] uppercase tracking-[0.18em] text-[oklch(0.50_0.02_70)] hover:text-[oklch(0.88_0.03_80)] transition-colors"
+            style={{ touchAction: "manipulation" }}
           >
-            esc / close
+            {isTouch ? "close" : "esc / close"}
           </button>
         </header>
 
@@ -235,6 +238,7 @@ function DialogueRunner({
                     type="button"
                     onClick={() => onChoose(choice.id)}
                     className="group w-full text-left rounded-sm border border-[oklch(0.22_0.01_70)] bg-[oklch(0.15_0.01_70)] px-4 py-3 transition-colors hover:border-[oklch(0.78_0.16_75)] hover:bg-[oklch(0.17_0.01_70)] focus-visible:border-[oklch(0.78_0.16_75)] outline-none"
+                    style={{ touchAction: "manipulation" }}
                   >
                     <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[oklch(0.50_0.02_70)] group-hover:text-[oklch(0.78_0.16_75)] transition-colors">
                       {String(i + 1).padStart(2, "0")}
@@ -250,13 +254,16 @@ function DialogueRunner({
             <div className="flex items-center justify-between gap-3">
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[oklch(0.35_0.01_70)]">
                 {finished
-                  ? "press space to continue"
-                  : "click to skip typing"}
+                  ? isTouch
+                    ? "tap to continue"
+                    : "press space to continue"
+                  : "tap to skip typing"}
               </p>
               <button
                 type="button"
                 onClick={advanceOrClose}
                 className="rounded-sm border border-[oklch(0.78_0.16_75)] bg-[oklch(0.78_0.16_75)]/10 px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] text-[oklch(0.78_0.16_75)] hover:bg-[oklch(0.78_0.16_75)]/20 transition-colors"
+                style={{ touchAction: "manipulation" }}
               >
                 {finished ? "continue" : "skip"}
               </button>

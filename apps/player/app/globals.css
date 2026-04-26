@@ -22,5 +22,26 @@
     margin: 0;
     padding: 0;
     overflow-x: hidden;
+    /* Stop iOS Safari from showing a tap highlight when the player
+       taps the canvas to walk somewhere. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* During the scroll-driven intro the canvas must allow vertical
+     panning so a swipe-up still advances the page. Once the player
+     enters first-person, we flip to `touch-action: none` so the
+     joystick and look-pad fully own touch — without that, an
+     incidental drag on the canvas would scroll the page out from
+     under the FPS view. */
+  canvas {
+    touch-action: pan-y;
+  }
+  body.fps-active canvas {
+    touch-action: none;
+  }
+  /* Stop the page itself from rubber-banding while in FPS — Safari
+     loves to bounce vertically on every drag. */
+  body.fps-active {
+    overscroll-behavior: none;
   }
 }

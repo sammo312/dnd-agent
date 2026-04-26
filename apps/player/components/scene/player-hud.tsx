@@ -20,9 +20,11 @@ import { useNarrativeStore } from "@/lib/narrative/narrative-store";
 interface PlayerHudProps {
   /** Only show HUD chrome once the player is actually walking. */
   active: boolean;
+  /** Touch device — moves the approach indicator above the joystick. */
+  isTouch?: boolean;
 }
 
-export function PlayerHud({ active }: PlayerHudProps) {
+export function PlayerHud({ active, isTouch = false }: PlayerHudProps) {
   const proximity = useNarrativeStore((s) => s.proximity);
   const dialogueActive = useNarrativeStore((s) => s.active !== null);
 
@@ -31,7 +33,7 @@ export function PlayerHud({ active }: PlayerHudProps) {
   return (
     <>
       <Crosshair />
-      <ApproachIndicator proximity={proximity} />
+      <ApproachIndicator proximity={proximity} isTouch={isTouch} />
     </>
   );
 }
@@ -58,9 +60,11 @@ function Crosshair() {
 
 interface ApproachIndicatorProps {
   proximity: ReturnType<typeof useNarrativeStore.getState>["proximity"];
+  /** Lifts the indicator out of the joystick's footprint on phones. */
+  isTouch: boolean;
 }
 
-function ApproachIndicator({ proximity }: ApproachIndicatorProps) {
+function ApproachIndicator({ proximity, isTouch }: ApproachIndicatorProps) {
   if (!proximity.beatId || !Number.isFinite(proximity.distance)) return null;
 
   // Only show once we're meaningfully close. 2.5x the radius gives a
@@ -78,12 +82,17 @@ function ApproachIndicator({ proximity }: ApproachIndicatorProps) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-x-0 bottom-10 z-30 flex justify-center"
+      className={[
+        "pointer-events-none fixed inset-x-0 z-30 flex justify-center",
+        // Bottom on desktop, top on touch (joystick + exit button
+        // both live near the bottom edge on mobile).
+        isTouch ? "top-16" : "bottom-10",
+      ].join(" ")}
     >
       <div
-        className="flex flex-col items-center gap-2 border px-5 py-3 shadow-2xl"
+        className="flex flex-col items-center gap-2 border px-4 py-3 shadow-2xl sm:px-5"
         style={{
-          minWidth: 320,
+          minWidth: 280,
           maxWidth: "90vw",
           background: "rgba(12, 10, 9, 0.85)",
           backdropFilter: "blur(8px)",
