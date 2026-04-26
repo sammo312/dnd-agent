@@ -13,7 +13,7 @@ import { CommandPalette } from "./command-palette";
 import { ExportButton } from "./export-button";
 import { NarrativeBridge } from "./narrative-bridge";
 import { StaticTab } from "./static-tab";
-import { Toaster } from "@dnd-agent/ui/components/ui/sonner";
+import { Toaster } from "@dnd-agent/ui/components/sonner";
 import { useWorkbenchStore } from "@/lib/workbench-store";
 import { useWorkbenchShortcuts } from "@/hooks/use-workbench-shortcuts";
 
