@@ -20,15 +20,20 @@
  * interactive object" everywhere the player encounters them.
  */
 
-import { useMemo, useRef } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Billboard, Html, Sparkles } from "@react-three/drei";
 import * as THREE from "three";
 
 import type { ExportedBeat, ExportedMapCell } from "@dnd-agent/shared";
+import { distanceToPlayerSq } from "@/lib/three/player-position-ref";
 
 const ACTIVE_COLOR = "#f59e0b"; // amber — matches our brand accent
 const TRIGGERED_COLOR = "#52525b"; // muted neutral when already played
+/** Beyond this radius we drop the Html label entirely. */
+const LABEL_RADIUS_SQ = 30 * 30;
+/** Beyond this radius we drop the per-beat ember sparkles. */
+const SPARKLES_RADIUS_SQ = 14 * 14;
 
 interface BeatBeaconProps {
   beat: ExportedBeat;
@@ -36,7 +41,7 @@ interface BeatBeaconProps {
   triggered: boolean;
 }
 
-export function BeatBeacon({ beat, cells, triggered }: BeatBeaconProps) {
+function BeatBeaconImpl({ beat, cells, triggered }: BeatBeaconProps) {
   const groupRef = useRef<THREE.Group>(null);
   const columnRef = useRef<THREE.Mesh>(null);
   const ringPulseRef = useRef<THREE.Mesh>(null);
@@ -56,8 +61,27 @@ export function BeatBeacon({ beat, cells, triggered }: BeatBeaconProps) {
   // dome lighting.
   const columnHeight = 12;
 
+  // Both flags flip rarely (only when crossing a radius), so re-renders
+  // from these state updates are cheap. The wins are dropping a heavy
+  // React portal (`Html`) and a `Sparkles` instance for every distant
+  // beacon, every frame.
+  const worldX = beat.x + 0.5;
+  const worldZ = beat.y + 0.5;
+  const [labelInRange, setLabelInRange] = useState(false);
+  const [sparklesInRange, setSparklesInRange] = useState(false);
+
   useFrame((state) => {
+    // Cheap visibility check first; runs every frame regardless of
+    // triggered state because the player can still walk *near* a
+    // played-out beacon and we want the label to fade in.
+    const dSq = distanceToPlayerSq(worldX, worldZ);
+    const labelNext = dSq < LABEL_RADIUS_SQ;
+    const sparklesNext = !triggered && dSq < SPARKLES_RADIUS_SQ;
+    if (labelNext !== labelInRange) setLabelInRange(labelNext);
+    if (sparklesNext !== sparklesInRange) setSparklesInRange(sparklesNext);
+
     if (triggered) return;
+
     const t = state.clock.elapsedTime;
     // Slow vertical drift on the column gives it presence without the
     // marker spinning frenetically like the old octahedron did.
@@ -125,13 +149,13 @@ export function BeatBeacon({ beat, cells, triggered }: BeatBeaconProps) {
         </mesh>
       )}
 
-      {/* Embers rising from the beacon — sells the "magical
-          waypoint" feeling without needing real bloom or a
-          postprocessing pipeline. Drei's Sparkles already animates
-          and depth-tests properly. */}
-      {!triggered && (
+      {/* Embers rising from the beacon — only mount the Sparkles
+          instance when the player is close enough to actually see
+          them. Each Sparkles is its own animated point cloud, so
+          unmounting the distant ones is a real GPU win. */}
+      {sparklesInRange && (
         <Sparkles
-          count={28}
+          count={20}
           size={4}
           speed={0.6}
           opacity={0.85}
@@ -183,30 +207,41 @@ export function BeatBeacon({ beat, cells, triggered }: BeatBeaconProps) {
         </mesh>
       </Billboard>
 
-      <Html
-        position={[0, 3.0, 0]}
-        center
-        distanceFactor={12}
-        style={{ pointerEvents: "none" }}
-      >
-        <div
-          className="whitespace-nowrap rounded-none border px-2.5 py-1 text-[11px] tracking-wide shadow-lg"
-          style={{
-            fontFamily:
-              'var(--font-mono, ui-monospace, "JetBrains Mono", monospace)',
-            background: triggered
-              ? "rgba(24, 24, 27, 0.85)"
-              : "rgba(245, 158, 11, 0.95)",
-            color: triggered ? "#a1a1aa" : "#0c0a09",
-            borderColor: triggered
-              ? "rgba(82, 82, 91, 0.6)"
-              : "rgba(120, 53, 15, 0.9)",
-          }}
+      {/* Html portals are React's heaviest per-frame load in r3f —
+          one per visible beacon. Mount only when the player is
+          actually within reading range of this beacon. */}
+      {labelInRange && (
+        <Html
+          position={[0, 3.0, 0]}
+          center
+          distanceFactor={12}
+          style={{ pointerEvents: "none" }}
         >
-          {triggered ? "✓ " : "▼ "}
-          {beat.name}
-        </div>
-      </Html>
+          <div
+            className="whitespace-nowrap rounded-none border px-2.5 py-1 text-[11px] tracking-wide shadow-lg"
+            style={{
+              fontFamily:
+                'var(--font-mono, ui-monospace, "JetBrains Mono", monospace)',
+              background: triggered
+                ? "rgba(24, 24, 27, 0.85)"
+                : "rgba(245, 158, 11, 0.95)",
+              color: triggered ? "#a1a1aa" : "#0c0a09",
+              borderColor: triggered
+                ? "rgba(82, 82, 91, 0.6)"
+                : "rgba(120, 53, 15, 0.9)",
+            }}
+          >
+            {triggered ? "✓ " : "▼ "}
+            {beat.name}
+          </div>
+        </Html>
+      )}
     </group>
   );
 }
+
+/**
+ * Memoed: only re-renders when the beat record itself changes or
+ * when its triggered state flips, never on every player step.
+ */
+export const BeatBeacon = memo(BeatBeaconImpl);

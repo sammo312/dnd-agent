@@ -20,6 +20,7 @@ import { WorldProp } from "./world-prop";
 import { MapClickableGround } from "./map-clickable-ground";
 import { TouchMovementHandler } from "./touch-movement-handler";
 import { GroundDetail } from "./ground-detail";
+import { playerPositionRef } from "@/lib/three/player-position-ref";
 
 interface PlayerMapSceneProps {
   project: ExportedProject;
@@ -82,14 +83,18 @@ export function PlayerMapScene({
       map.width / 2 - (map.spawn.x + 0.5),
       map.height / 2 - (map.spawn.y + 0.5)
     );
+    const startPos = new THREE.Vector3(
+      map.spawn.x + 0.5,
+      eyeHeight,
+      map.spawn.y + 0.5,
+    );
+    // Prime the shared ref before children's first useFrame so
+    // proximity reads on frame 1 don't see a zero-vector.
+    playerPositionRef.current.copy(startPos);
     setFirstPerson({
       active: true,
       pieceId: "player",
-      position: new THREE.Vector3(
-        map.spawn.x + 0.5,
-        eyeHeight,
-        map.spawn.y + 0.5
-      ),
+      position: startPos,
       rotation: facing,
     });
   }, [setFirstPerson, eyeHeight, map.spawn, map.width, map.height]);
@@ -110,6 +115,10 @@ export function PlayerMapScene({
 
   const handleMove = useCallback(
     (newPos: THREE.Vector3) => {
+      // Mirror into the non-reactive ref FIRST so any in-Canvas
+      // useFrame consumers (label fades, decals) see the new pose
+      // without waiting for React to commit the state update.
+      playerPositionRef.current.copy(newPos);
       setFirstPerson((prev) => ({ ...prev, position: newPos }));
     },
     [setFirstPerson]
@@ -245,18 +254,18 @@ export function PlayerMapScene({
       <ContactShadows
         position={[map.width / 2, 0.02, map.height / 2]}
         scale={Math.max(map.width, map.height) * 1.2}
-        resolution={1024}
+        resolution={512}
         far={6}
         blur={2.4}
         opacity={0.55}
         frames={1}
       />
 
-      {/* Drifting motes give the air physical depth. Scaled to the
-          whole map so the player walks through them rather than
-          past a single column. */}
+      {/* Drifting motes give the air physical depth. Capped low —
+          a few dozen reads as "atmosphere", and going higher just
+          burns frames on integrated GPUs without changing the look. */}
       <Sparkles
-        count={Math.min(220, map.width * map.height * 0.04)}
+        count={Math.min(80, Math.floor(map.width * map.height * 0.015))}
         size={3.2}
         speed={0.25}
         opacity={0.45}
@@ -295,16 +304,7 @@ export function PlayerMapScene({
       <GroundDetail cells={map.cells} width={map.width} height={map.height} />
 
       {map.pois.map((poi) => (
-        <WorldProp
-          key={poi.id}
-          poi={poi}
-          cells={map.cells}
-          playerPosition={[
-            firstPerson.position.x,
-            firstPerson.position.y,
-            firstPerson.position.z,
-          ]}
-        />
+        <WorldProp key={poi.id} poi={poi} cells={map.cells} />
       ))}
 
       {map.beats.map((beat) => (
