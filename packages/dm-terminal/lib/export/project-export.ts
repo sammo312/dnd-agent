@@ -3,15 +3,44 @@
  * characters, story sections, map state, beats, spawn) into a single
  * JSON envelope consumed by the player app.
  *
- * The canonical runtime model:
- *   1. The single 'preface' section runs once on project load.
- *   2. Player spawns onto the map at `map.spawn`.
- *   3. Walking within `radius` of a `map.beats[i]` triggers that
- *      beat's section. `oneShot:true` beats fire once.
- *   4. A section ends when its current dialogue node has no choices.
+ * The canonical runtime model and wire format live in
+ * `@dnd-agent/shared/types/project-export` so the player app can read
+ * the same contract without importing the heavier workbench packages.
+ * This module re-exports the types and adds the build / validate /
+ * download logic the workbench needs at write time.
  */
 
-export const PROJECT_EXPORT_VERSION = 1;
+import {
+  PROJECT_EXPORT_VERSION,
+  type ExportedBeat,
+  type ExportedCharacter,
+  type ExportedChoice,
+  type ExportedDialogueNode,
+  type ExportedDialogueSegment,
+  type ExportedMap,
+  type ExportedMapCell,
+  type ExportedPOI,
+  type ExportedProject,
+  type ExportedRegion,
+  type ExportedScene,
+  type ExportedSection,
+} from '@dnd-agent/shared/types/project-export';
+
+export {
+  PROJECT_EXPORT_VERSION,
+  type ExportedBeat,
+  type ExportedCharacter,
+  type ExportedChoice,
+  type ExportedDialogueNode,
+  type ExportedDialogueSegment,
+  type ExportedMap,
+  type ExportedMapCell,
+  type ExportedPOI,
+  type ExportedProject,
+  type ExportedRegion,
+  type ExportedScene,
+  type ExportedSection,
+};
 
 // Loose mirrors of narrative-editor types (kept local so this module
 // stays decoupled from that package).
@@ -37,119 +66,6 @@ interface DialogueLike {
     style?: { color?: string; bold?: boolean; italic?: boolean };
   }>;
   choices?: Array<{ label: string; id: string }>;
-}
-
-// ──────────────────────────────────────────────────────────
-// Canonical export shape (player-side type contract)
-// ──────────────────────────────────────────────────────────
-
-export interface ExportedDialogueSegment {
-  text: string;
-  speed?: number;
-  style?: { color?: string; bold?: boolean; italic?: boolean };
-}
-
-export interface ExportedChoice {
-  label: string;
-  /** Target dialogue node id within the same section. */
-  id: string;
-}
-
-export interface ExportedDialogueNode {
-  id: string;
-  speaker: string;
-  dialogue: ExportedDialogueSegment[];
-  choices?: ExportedChoice[];
-  background?: string;
-  music?: string;
-  gltf?: string;
-}
-
-export interface ExportedSection {
-  name: string;
-  title?: string;
-  kind: 'preface' | 'beat';
-  startId: string;
-  background?: string;
-  music?: string;
-  gltf?: string;
-  nodes: ExportedDialogueNode[];
-}
-
-export interface ExportedBeat {
-  id: string;
-  sectionName: string;
-  /** If set, beat starts at this node id instead of the section's start. */
-  nodeId?: string;
-  name: string;
-  x: number;
-  y: number;
-  radius: number;
-  oneShot: boolean;
-}
-
-export interface ExportedCharacter {
-  id: string;
-  name: string;
-  role: 'pc' | 'npc' | 'antagonist';
-  description: string;
-  motivation?: string;
-}
-
-export interface ExportedMapCell {
-  terrain: string;
-  elevation: number;
-  elevationOffset?: number;
-  regionId?: string;
-}
-
-export interface ExportedPOI {
-  id: string;
-  type: string;
-  name: string;
-  icon: string;
-  x: number;
-  y: number;
-  size: { w: number; h: number };
-  gltfUrl?: string;
-}
-
-export interface ExportedRegion {
-  id: string;
-  name: string;
-  color: string;
-  pixels: { x: number; y: number }[];
-}
-
-export interface ExportedMap {
-  width: number;
-  height: number;
-  cells: ExportedMapCell[][];
-  pois: ExportedPOI[];
-  regions: ExportedRegion[];
-  spawn: { x: number; y: number };
-  beats: ExportedBeat[];
-}
-
-export interface ExportedScene {
-  title?: string;
-  pitch?: string;
-  summary?: string;
-  tone?: string;
-  setting?: string;
-}
-
-export interface ExportedProject {
-  version: number;
-  meta: {
-    title: string;
-    summary?: string;
-    exportedAt: string;
-  };
-  scene: ExportedScene | null;
-  characters: ExportedCharacter[];
-  sections: ExportedSection[];
-  map: ExportedMap;
 }
 
 // ──────────────────────────────────────────────────────────

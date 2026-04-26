@@ -4,6 +4,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { ControlsHint } from "@/components/hud/controls-hint";
 import { ScrollHint } from "@/components/hud/scroll-hint";
+import { ProjectImportScreen } from "@/components/project-import-screen";
+import { ProjectLoadedSummary } from "@/components/project-loaded-summary";
+import { useProjectStore } from "@/lib/project/project-store";
 
 const PlayerView = dynamic(() => import("@/components/player-scene"), {
   ssr: false,
@@ -21,7 +24,53 @@ const PlayerCliDrawer = dynamic(
   { ssr: false }
 );
 
+// Three high-level UI states the player can be in. The home page is a
+// router between them, driven by `useProjectStore` + a local "have we
+// dismissed the post-load summary?" flag.
+type Stage = "import" | "summary" | "scene";
+
 export default function Home() {
+  const project = useProjectStore((s) => s.project);
+  const loadedAt = useProjectStore((s) => s.loadedAt);
+  const hydrateFromSession = useProjectStore((s) => s.hydrateFromSession);
+
+  // Restore previously-loaded project on first mount so a refresh
+  // during an iteration loop doesn't kick the DM back to the import
+  // screen.
+  useEffect(() => {
+    hydrateFromSession();
+  }, [hydrateFromSession]);
+
+  const [enteredScene, setEnteredScene] = useState(false);
+
+  // Any fresh import (loadedAt change) bounces us back to the summary,
+  // so the DM gets a confirmation read-back of what just landed.
+  useEffect(() => {
+    setEnteredScene(false);
+  }, [loadedAt]);
+
+  const stage: Stage = !project
+    ? "import"
+    : enteredScene
+      ? "scene"
+      : "summary";
+
+  if (stage === "import") {
+    return <ProjectImportScreen />;
+  }
+
+  if (stage === "summary") {
+    return <ProjectLoadedSummary onEnter={() => setEnteredScene(true)} />;
+  }
+
+  return <SceneStage />;
+}
+
+/**
+ * The original 3D scroll-driven scene, extracted unchanged so the home
+ * page can swap it in once the DM clicks "Enter scene".
+ */
+function SceneStage() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [isFirstPerson, setIsFirstPerson] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +80,8 @@ export default function Home() {
       if (!containerRef.current) return;
 
       const scrollTop = window.scrollY;
-      const scrollHeight = containerRef.current.scrollHeight - window.innerHeight;
+      const scrollHeight =
+        containerRef.current.scrollHeight - window.innerHeight;
       const progress = Math.min(1, Math.max(0, scrollTop / scrollHeight));
 
       if (isFirstPerson && progress < 0.9) {
@@ -54,7 +104,8 @@ export default function Home() {
       if (e.key === "Escape" && isFirstPerson) {
         window.dispatchEvent(new CustomEvent("exitFirstPerson"));
         if (containerRef.current) {
-          const scrollHeight = containerRef.current.scrollHeight - window.innerHeight;
+          const scrollHeight =
+            containerRef.current.scrollHeight - window.innerHeight;
           window.scrollTo({ top: scrollHeight * 0.7, behavior: "smooth" });
         }
       }
