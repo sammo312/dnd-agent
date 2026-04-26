@@ -35,6 +35,7 @@ export function BeatProximityWatcher({
   const fireBeat = useNarrativeStore((s) => s.fireBeat);
   const markInside = useNarrativeStore((s) => s.markInside);
   const markOutside = useNarrativeStore((s) => s.markOutside);
+  const setProximity = useNarrativeStore((s) => s.setProximity);
 
   // We don't want to read these from the store every frame — it would
   // re-subscribe and re-render. Pull them lazily on each tick instead.
@@ -50,6 +51,11 @@ export function BeatProximityWatcher({
     const pz = position.z;
     const lastInside = lastInsideRef.current;
     const stillInside = new Set<string>();
+
+    // Track the closest *non-triggered* beat for the approach HUD.
+    const triggered = useNarrativeStore.getState().triggered;
+    let closest: ExportedBeat | null = null;
+    let closestDist = Infinity;
 
     for (const beat of beats) {
       // Beat coords are integer cell indices; convert to world by
@@ -71,9 +77,28 @@ export function BeatProximityWatcher({
         // Crossed out this frame.
         markOutside(beat.id);
       }
-      // Reference the type so dead-code-elim doesn't drop the import.
-      void (beat satisfies ExportedBeat);
+
+      if (!triggered.has(beat.id) && dist < closestDist) {
+        closest = beat;
+        closestDist = dist;
+      }
     }
+
+    setProximity(
+      closest
+        ? {
+            beatId: closest.id,
+            beatName: closest.name,
+            distance: closestDist,
+            radius: closest.radius,
+          }
+        : {
+            beatId: null,
+            beatName: null,
+            distance: Infinity,
+            radius: 0,
+          },
+    );
 
     lastInsideRef.current = stillInside;
   });

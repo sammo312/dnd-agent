@@ -1,13 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sky } from "@react-three/drei";
 import * as THREE from "three";
 import {
   ClickableGround,
   MovementHandler,
-  NarrativeBeatMarker,
-  POIMarker,
   TerrainGrid,
   TerrainMesh,
   WalkToTarget,
@@ -18,6 +16,8 @@ import { playerTerrainPalette } from "@/lib/three/terrain-palette";
 import { useNarrativeStore } from "@/lib/narrative/narrative-store";
 import { PlayerScrollCamera } from "./player-scroll-camera";
 import { BeatProximityWatcher } from "./beat-proximity-watcher";
+import { BeatBeacon } from "./beat-beacon";
+import { WorldProp } from "./world-prop";
 
 interface PlayerMapSceneProps {
   project: ExportedProject;
@@ -53,6 +53,8 @@ export function PlayerMapScene({
   const firePrefaceIfNeeded = useNarrativeStore(
     (s) => s.firePrefaceIfNeeded,
   );
+  // Drives the dim/gray treatment on already-played beacons.
+  const triggeredBeats = useNarrativeStore((s) => s.triggered);
 
   // Auto-run the preface section the first time the player actually
   // enters the world (i.e. FPS engages). Doing it earlier would fire
@@ -61,40 +63,6 @@ export function PlayerMapScene({
   useEffect(() => {
     if (firstPerson.active) firePrefaceIfNeeded(project);
   }, [firstPerson.active, firePrefaceIfNeeded, project]);
-
-  // Wire-format beats → three-engine's marker shape. Beats with a node
-  // id are "node" markers (cyan); section-only beats are "section"
-  // markers (amber).
-  const placedBeats = useMemo(
-    () =>
-      map.beats.map((b) => ({
-        id: b.id,
-        sectionId: b.sectionName,
-        nodeId: b.nodeId,
-        name: b.name,
-        x: b.x,
-        y: b.y,
-        type: (b.nodeId ? "node" : "section") as "node" | "section",
-      })),
-    [map.beats]
-  );
-
-  // POIs come through the export with the same shape three-engine
-  // already understands; just narrow to the marker's expected fields.
-  const placedPois = useMemo(
-    () =>
-      map.pois.map((p) => ({
-        id: p.id,
-        type: p.type,
-        name: p.name,
-        icon: p.icon,
-        x: p.x,
-        y: p.y,
-        size: p.size,
-        gltfUrl: p.gltfUrl,
-      })),
-    [map.pois]
-  );
 
   const enterFirstPerson = useCallback(() => {
     const facing = Math.atan2(
@@ -234,12 +202,26 @@ export function PlayerMapScene({
         </mesh>
       )}
 
-      {placedPois.map((poi) => (
-        <POIMarker key={poi.id} poi={poi} cells={map.cells} />
+      {map.pois.map((poi) => (
+        <WorldProp
+          key={poi.id}
+          poi={poi}
+          cells={map.cells}
+          playerPosition={[
+            firstPerson.position.x,
+            firstPerson.position.y,
+            firstPerson.position.z,
+          ]}
+        />
       ))}
 
-      {placedBeats.map((beat) => (
-        <NarrativeBeatMarker key={beat.id} beat={beat} cells={map.cells} />
+      {map.beats.map((beat) => (
+        <BeatBeacon
+          key={beat.id}
+          beat={beat}
+          cells={map.cells}
+          triggered={triggeredBeats.has(beat.id)}
+        />
       ))}
 
       {/* Spawn marker — a subtle ring so the DM can see where the

@@ -30,6 +30,29 @@ export interface ActiveDialogue {
   beatId: string | null;
 }
 
+/**
+ * Proximity HUD state — the closest *non-triggered* beat plus the
+ * player's distance to it. Lives in the store so HUD components
+ * outside the Canvas can read it without piercing R3F's render
+ * boundary, while the proximity watcher inside the Canvas writes it
+ * each frame.
+ */
+export interface BeatProximity {
+  beatId: string | null;
+  beatName: string | null;
+  /** World-space distance in tile units. Infinity when no beat exists. */
+  distance: number;
+  /** Beat's trigger radius — drives the approach progress UI. */
+  radius: number;
+}
+
+const NO_PROXIMITY: BeatProximity = {
+  beatId: null,
+  beatName: null,
+  distance: Infinity,
+  radius: 0,
+};
+
 interface NarrativeState {
   active: ActiveDialogue | null;
   /** Beat ids that have already fired and shouldn't re-trigger. */
@@ -42,6 +65,8 @@ interface NarrativeState {
   inside: Set<string>;
   /** True once the preface has been auto-fired this session. */
   prefaceFired: boolean;
+  /** Closest non-triggered beat — drives the approach HUD. */
+  proximity: BeatProximity;
 
   /** Manually open a section at its declared startId (or a given node). */
   openSection: (
@@ -61,6 +86,8 @@ interface NarrativeState {
   /** Proximity bookkeeping — call from the scene each frame. */
   markInside: (beatId: string) => void;
   markOutside: (beatId: string) => void;
+  /** Update the closest-beat HUD state. Cheap no-op when unchanged. */
+  setProximity: (next: BeatProximity) => void;
 
   /** Reset everything. Called when a new project is imported. */
   reset: () => void;
@@ -71,6 +98,7 @@ export const useNarrativeStore = create<NarrativeState>((set, get) => ({
   triggered: new Set<string>(),
   inside: new Set<string>(),
   prefaceFired: false,
+  proximity: NO_PROXIMITY,
 
   openSection: (project, sectionName, options) => {
     const section = findSection(project, sectionName);
@@ -157,12 +185,27 @@ export const useNarrativeStore = create<NarrativeState>((set, get) => ({
     set({ inside: next });
   },
 
+  setProximity: (next) => {
+    const { proximity } = get();
+    // Avoid noisy re-renders when nothing meaningful has changed.
+    // Distance gets snapped to a tenth of a tile; that's plenty for
+    // a HUD readout and keeps React re-renders to ~10 Hz at jog
+    // speed instead of every frame.
+    const sameBeat = proximity.beatId === next.beatId;
+    const sameDist =
+      Math.abs(proximity.distance - next.distance) < 0.1 &&
+      Number.isFinite(proximity.distance) === Number.isFinite(next.distance);
+    if (sameBeat && sameDist) return;
+    set({ proximity: next });
+  },
+
   reset: () =>
     set({
       active: null,
       triggered: new Set<string>(),
       inside: new Set<string>(),
       prefaceFired: false,
+      proximity: NO_PROXIMITY,
     }),
 }));
 

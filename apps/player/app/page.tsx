@@ -7,6 +7,7 @@ import { ScrollHint } from "@/components/hud/scroll-hint";
 import { ProjectImportScreen } from "@/components/project-import-screen";
 import { ProjectLoadedSummary } from "@/components/project-loaded-summary";
 import { DialogueOverlay } from "@/components/dialogue/dialogue-overlay";
+import { PlayerHud } from "@/components/scene/player-hud";
 import { useProjectStore } from "@/lib/project/project-store";
 import { useNarrativeStore } from "@/lib/narrative/narrative-store";
 
@@ -145,6 +146,11 @@ function SceneStage() {
       {/* HUD overlays */}
       <ScrollHint visible={scrollProgress <= 0.05 && !isFirstPerson} />
       <ControlsHint visible={isFirstPerson} />
+
+      {/* In-world reticle + "Approaching: …" beat indicator. Hides
+          itself while a dialogue is up so it doesn't fight the
+          overlay UI. */}
+      <PlayerHud active={isFirstPerson} />
 
       {/* Player CLI drawer */}
       <PlayerCliDrawer />
