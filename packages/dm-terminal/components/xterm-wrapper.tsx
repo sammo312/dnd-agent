@@ -129,14 +129,6 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
         fitAddon = new FitAddon();
         terminal.loadAddon(fitAddon);
 
-        try {
-          const { WebglAddon } = await import("@xterm/addon-webgl");
-          const webglAddon = new WebglAddon();
-          terminal.loadAddon(webglAddon);
-        } catch {
-          // WebGL not supported — canvas fallback is fine.
-        }
-
         terminal.open(containerRef.current!);
         fitAddon.fit();
 
