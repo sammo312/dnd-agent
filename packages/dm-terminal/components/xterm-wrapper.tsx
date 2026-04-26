@@ -19,6 +19,13 @@ export interface XTermHandle {
 
 interface XTermWrapperProps {
   onData: (data: string) => void;
+  /**
+   * Fires exactly once, after xterm has been dynamically imported,
+   * mounted, and `onData` has been wired. Use this to drive boot writes
+   * (banner, welcome, prompt) instead of a setTimeout — async dynamic
+   * imports can blow past any fixed delay on a cold cache.
+   */
+  onReady?: () => void;
 }
 
 /**
@@ -54,7 +61,7 @@ const TERMINAL_THEME = {
 } as const;
 
 export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
-  function XTermWrapper({ onData }, ref) {
+  function XTermWrapper({ onData, onReady }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const terminalRef = useRef<any>(null);
     const fitAddonRef = useRef<any>(null);
@@ -140,6 +147,11 @@ export const XTermWrapper = forwardRef<XTermHandle, XTermWrapperProps>(
 
         window.addEventListener("resize", handleResize);
         terminal.focus();
+
+        // Notify the shell that xterm is mounted and writable. This must
+        // run *after* `terminalRef.current = terminal` so the imperative
+        // handle's write/clear/focus are no longer no-ops.
+        onReady?.();
       }
 
       init();

@@ -864,25 +864,27 @@ export function TerminalShell({
     }
   }, [isLoading, showPrompt]);
 
+  /**
+   * Boot the terminal — banner, welcome, prompt — exactly once, the moment
+   * xterm tells us it's mounted and writable. We can't rely on a setTimeout
+   * delay here because XTermWrapper does several `await import(...)` calls
+   * on first load; on a cold cache those can take longer than any fixed
+   * delay, and the writes silently no-op until the inner terminal exists.
+   */
   const startupDone = useRef(false);
-  useEffect(() => {
+  const handleReady = useCallback(() => {
     if (startupDone.current) return;
     startupDone.current = true;
-
-    const timer = setTimeout(() => {
-      const term = termRef.current;
-      if (!term) return;
-      term.write(config?.banner ?? BANNER);
-      term.write(config?.welcomeMessage?.() ?? formatWelcome());
-      const auto = useDmContextStore.getState().autoMode;
-      if (auto) {
-        term.write(formatStatus("auto mode is on"));
-      }
-      showPrompt();
-    }, 200);
-
-    return () => clearTimeout(timer);
+    const term = termRef.current;
+    if (!term) return;
+    term.write(config?.banner ?? BANNER);
+    term.write(config?.welcomeMessage?.() ?? formatWelcome());
+    const auto = useDmContextStore.getState().autoMode;
+    if (auto) {
+      term.write(formatStatus("auto mode is on"));
+    }
+    showPrompt();
   }, [showPrompt, config]);
 
-  return <XTermWrapper ref={termRef} onData={handleData} />;
+  return <XTermWrapper ref={termRef} onData={handleData} onReady={handleReady} />;
 }
