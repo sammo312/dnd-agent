@@ -1,6 +1,5 @@
 import { streamText, convertToCoreMessages } from "ai";
 import type { Message } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { dmTools } from "@dnd-agent/dm-terminal/lib/ai/tools";
 import {
   buildSystemPrompt,
@@ -9,12 +8,6 @@ import {
 
 export const maxDuration = 60;
 
-// Route Anthropic calls through the Vercel AI Gateway.
-const anthropic = createAnthropic({
-  baseURL: "https://ai-gateway.vercel.sh/v1",
-  apiKey: process.env.AI_GATEWAY_API_KEY,
-});
-
 export async function POST(req: Request) {
   const {
     messages,
@@ -22,9 +15,18 @@ export async function POST(req: Request) {
   }: { messages: Message[]; workspace?: WorkspaceSnapshot } = await req.json();
 
   const result = streamText({
-    // Haiku 4.5 has much higher TPM limits than Sonnet on the gateway and is
-    // plenty capable for tool-orchestration / scene-prep work. Keeps cost low too.
-    model: anthropic("anthropic/claude-haiku-4-5"),
+    // Pass the model as a plain string so the AI SDK routes through the
+    // Vercel AI Gateway automatically. Anthropic is a zero-config gateway
+    // provider — on Vercel deploys, the OIDC token authenticates without
+    // an env var. Mirrors apps/player/app/api/player-chat/route.ts.
+    //
+    // The previous wrapper was reading AI_GATEWAY_API_KEY (unset in
+    // prod), causing the SDK to fall back to ANTHROPIC_API_KEY (also
+    // unset) and throw "Anthropic API key is missing".
+    //
+    // Haiku 4.5 has much higher TPM limits than Sonnet on the gateway
+    // and is plenty capable for tool-orchestration / scene-prep work.
+    model: "anthropic/claude-haiku-4-5",
     system: buildSystemPrompt(workspace),
     messages: convertToCoreMessages(messages),
     tools: dmTools,
