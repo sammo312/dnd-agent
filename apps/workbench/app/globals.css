@@ -6,89 +6,101 @@
 @source "../../../packages/narrative-editor";
 @source "../../../packages/dm-terminal";
 @source "../../../packages/three-engine";
+@source "../components";
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Design System — The Living Stage
+ * Retro-futuristic / warm terminal. Dark-only. Sharp corners.
+ * See DESIGN.md for the full token rationale. Mirrors app/globals.css.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --bg-deep:      oklch(0.11 0.01 70);
+  --bg-surface:   oklch(0.15 0.01 70);
+  --bg-elevated:  oklch(0.19 0.01 70);
 
-  /* Narrative editor custom colors */
-  --node-scene: oklch(0.55 0.15 280);
-  --node-dialogue: oklch(0.55 0.18 180);
-  --node-choice: oklch(0.65 0.15 50);
-  --connection: oklch(0.50 0.10 180);
+  --text-primary: oklch(0.88 0.03 80);
+  --text-muted:   oklch(0.50 0.02 70);
+  --text-dim:     oklch(0.35 0.01 70);
+
+  --accent-amber:   oklch(0.78 0.16 75);
+  --accent-green:   oklch(0.70 0.17 150);
+  --accent-cyan:    oklch(0.68 0.12 195);
+  --accent-crimson: oklch(0.52 0.19 25);
+  --accent-violet:  oklch(0.52 0.14 300);
+
+  --background: var(--bg-deep);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent-amber);
+  --primary-foreground: var(--bg-deep);
+  --secondary: var(--bg-elevated);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-elevated);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--bg-elevated);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--accent-crimson);
+  --destructive-foreground: var(--text-primary);
+  --border: oklch(0.22 0.01 70);
+  --input:  oklch(0.22 0.01 70);
+  --ring:   var(--accent-amber);
+
+  --radius: 0.25rem;
+
+  --sidebar: var(--bg-surface);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--accent-amber);
+  --sidebar-primary-foreground: var(--bg-deep);
+  --sidebar-accent: var(--bg-elevated);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: oklch(0.22 0.01 70);
+  --sidebar-ring: var(--accent-amber);
+
+  --node-scene:    oklch(0.55 0.14 290);
+  --node-dialogue: oklch(0.62 0.13 200);
+  --node-choice:   oklch(0.72 0.15 70);
+  --connection:    oklch(0.50 0.06 70);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: var(--bg-deep);
+  --foreground: var(--text-primary);
+  --card: var(--bg-surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent-amber);
+  --primary-foreground: var(--bg-deep);
+  --secondary: var(--bg-elevated);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-elevated);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--bg-elevated);
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--accent-crimson);
+  --destructive-foreground: var(--text-primary);
+  --border: oklch(0.22 0.01 70);
+  --input: oklch(0.22 0.01 70);
+  --ring: var(--accent-amber);
+  --sidebar: var(--bg-surface);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--accent-amber);
+  --sidebar-primary-foreground: var(--bg-deep);
+  --sidebar-accent: var(--bg-elevated);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: oklch(0.22 0.01 70);
+  --sidebar-ring: var(--accent-amber);
 }
 
 @theme inline {
-  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -108,15 +120,18 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-accent-amber:   var(--accent-amber);
+  --color-accent-green:   var(--accent-green);
+  --color-accent-cyan:    var(--accent-cyan);
+  --color-accent-crimson: var(--accent-crimson);
+  --color-accent-violet:  var(--accent-violet);
+
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -125,35 +140,113 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  /* Narrative editor custom theme tokens */
-  --color-node-scene: var(--node-scene);
+
+  --color-node-scene:    var(--node-scene);
   --color-node-dialogue: var(--node-dialogue);
-  --color-node-choice: var(--node-choice);
-  --color-connection: var(--connection);
+  --color-node-choice:   var(--node-choice);
+  --color-connection:    var(--connection);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
+  html, body {
     @apply bg-background text-foreground;
+  }
+  body {
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .dockview-theme-abyss * {
+    text-transform: none !important;
+  }
+
+  pre, code, kbd, samp, .font-mono {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-/* Dockview dark theme overrides */
-.dark .dockview-theme-abyss {
-  --dv-activegroup-visiblepanel-tab-background-color: hsl(220 13% 18%);
-  --dv-activegroup-hiddenpanel-tab-background-color: hsl(220 13% 12%);
-  /* Make inactive groups look identical to active — no "focused" pane distinction */
-  --dv-inactivegroup-visiblepanel-tab-background-color: hsl(220 13% 18%);
-  --dv-inactivegroup-hiddenpanel-tab-background-color: hsl(220 13% 12%);
-  --dv-tab-divider-color: hsl(220 13% 22%);
-  --dv-group-view-background-color: hsl(220 13% 10%);
+@layer utilities {
+  .text-glow-amber {
+    text-shadow: 0 0 8px oklch(0.78 0.16 75 / 0.30);
+  }
+  .text-glow-green {
+    text-shadow: 0 0 8px oklch(0.70 0.17 150 / 0.30);
+  }
+  .text-glow-cyan {
+    text-shadow: 0 0 8px oklch(0.68 0.12 195 / 0.25);
+  }
+  .text-glow-crimson {
+    text-shadow: 0 0 8px oklch(0.52 0.19 25 / 0.30);
+  }
+
+  .shadow-glow-amber {
+    box-shadow: 0 0 12px oklch(0.78 0.16 75 / 0.35);
+  }
+  .shadow-glow-green {
+    box-shadow: 0 0 12px oklch(0.70 0.17 150 / 0.35);
+  }
+  .shadow-glow-crimson {
+    box-shadow: 0 0 12px oklch(0.52 0.19 25 / 0.35);
+  }
 }
 
-/* Dockview header action buttons styling */
+.dockview-theme-abyss {
+  --dv-background-color: oklch(0.11 0.01 70);
+  --dv-paneview-active-outline-color: oklch(0.78 0.16 75);
+  --dv-tabs-and-actions-container-background-color: oklch(0.13 0.01 70);
+  --dv-tabs-and-actions-container-font-size: 12px;
+  --dv-tabs-and-actions-container-height: 32px;
+
+  --dv-activegroup-visiblepanel-tab-background-color: oklch(0.19 0.01 70);
+  --dv-activegroup-hiddenpanel-tab-background-color: oklch(0.13 0.01 70);
+  --dv-inactivegroup-visiblepanel-tab-background-color: oklch(0.19 0.01 70);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: oklch(0.13 0.01 70);
+
+  --dv-activegroup-visiblepanel-tab-color: oklch(0.88 0.03 80);
+  --dv-activegroup-hiddenpanel-tab-color: oklch(0.50 0.02 70);
+  --dv-inactivegroup-visiblepanel-tab-color: oklch(0.88 0.03 80);
+  --dv-inactivegroup-hiddenpanel-tab-color: oklch(0.50 0.02 70);
+
+  --dv-tab-divider-color: oklch(0.22 0.01 70);
+  --dv-separator-border: oklch(0.22 0.01 70);
+  --dv-paneview-header-border-color: oklch(0.22 0.01 70);
+
+  --dv-group-view-background-color: oklch(0.11 0.01 70);
+  --dv-icon-hover-background-color: oklch(0.22 0.01 70);
+
+  --dv-drag-over-background-color: oklch(0.78 0.16 75 / 0.10);
+  --dv-drag-over-border-color: oklch(0.78 0.16 75);
+}
+
 .dockview-theme-abyss .dv-right-actions-container {
   display: flex;
   align-items: center;
+}
+
+::selection {
+  background: oklch(0.78 0.16 75 / 0.35);
+  color: oklch(0.11 0.01 70);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: oklch(0.11 0.01 70);
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.22 0.01 70);
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.30 0.01 70);
 }
