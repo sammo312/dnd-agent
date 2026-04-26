@@ -16,7 +16,6 @@
     "dev:demo": "turbo dev --filter=@dnd-agent/sync-server --filter=@dnd-agent/player"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^1.0.0",
     "@ai-sdk/react": "^1.0.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",

@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^1.0.0",
     "@ai-sdk/react": "^1.0.0",
     "@dnd-agent/dm-terminal": "workspace:*",
     "@dnd-agent/map-editor": "workspace:*",

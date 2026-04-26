@@ -1,6 +1,5 @@
 import { streamText, convertToCoreMessages } from 'ai';
 import type { Message } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
 import { allDmTools } from '@dnd-agent/dm-terminal/lib/ai/tools';
 
 export const maxDuration = 60;
@@ -48,7 +47,8 @@ export async function POST(req: Request) {
   const { messages }: { messages: Message[] } = await req.json();
 
   const result = streamText({
-    model: anthropic('claude-sonnet-4-20250514'),
+    // Vercel AI Gateway routes by model string — zero-config for Anthropic in v0.
+    model: 'anthropic/claude-sonnet-4',
     system: SYSTEM_PROMPT,
     messages: convertToCoreMessages(messages),
     tools: allDmTools,

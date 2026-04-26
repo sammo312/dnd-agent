@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -18,21 +22,55 @@
       }
     ],
     "paths": {
-      "@/*": ["./apps/workbench/*"],
-      "@dnd-agent/ui": ["./packages/ui"],
-      "@dnd-agent/ui/*": ["./packages/ui/*"],
-      "@dnd-agent/shared": ["./packages/shared"],
-      "@dnd-agent/shared/*": ["./packages/shared/*"],
-      "@dnd-agent/map-editor": ["./packages/map-editor"],
-      "@dnd-agent/map-editor/*": ["./packages/map-editor/*"],
-      "@dnd-agent/narrative-editor": ["./packages/narrative-editor"],
-      "@dnd-agent/narrative-editor/*": ["./packages/narrative-editor/*"],
-      "@dnd-agent/dm-terminal": ["./packages/dm-terminal"],
-      "@dnd-agent/dm-terminal/*": ["./packages/dm-terminal/*"],
-      "@dnd-agent/three-engine": ["./packages/three-engine"],
-      "@dnd-agent/three-engine/*": ["./packages/three-engine/*"]
-    }
+      "@/*": [
+        "./apps/workbench/*"
+      ],
+      "@dnd-agent/ui": [
+        "./packages/ui"
+      ],
+      "@dnd-agent/ui/*": [
+        "./packages/ui/*"
+      ],
+      "@dnd-agent/shared": [
+        "./packages/shared"
+      ],
+      "@dnd-agent/shared/*": [
+        "./packages/shared/*"
+      ],
+      "@dnd-agent/map-editor": [
+        "./packages/map-editor"
+      ],
+      "@dnd-agent/map-editor/*": [
+        "./packages/map-editor/*"
+      ],
+      "@dnd-agent/narrative-editor": [
+        "./packages/narrative-editor"
+      ],
+      "@dnd-agent/narrative-editor/*": [
+        "./packages/narrative-editor/*"
+      ],
+      "@dnd-agent/dm-terminal": [
+        "./packages/dm-terminal"
+      ],
+      "@dnd-agent/dm-terminal/*": [
+        "./packages/dm-terminal/*"
+      ],
+      "@dnd-agent/three-engine": [
+        "./packages/three-engine"
+      ],
+      "@dnd-agent/three-engine/*": [
+        "./packages/three-engine/*"
+      ]
+    },
+    "target": "ES2017"
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
