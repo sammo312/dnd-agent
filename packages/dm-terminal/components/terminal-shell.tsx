@@ -19,7 +19,6 @@ import {
 } from "../lib/game/command-router";
 import type { CommandResult } from "../lib/game/command-router";
 import { runProjectExport } from "../lib/export/run-export";
-import { BANNER } from "../lib/terminal/ascii-art";
 import {
   formatNarration,
   formatPrompt,
@@ -989,7 +988,12 @@ export function TerminalShell({
     startupDone.current = true;
     const term = termRef.current;
     if (!term) return;
-    term.write(config?.banner ?? BANNER);
+    // Optional banner first (most hosts don't supply one anymore — the
+    // welcome formatter carries the title bar instead, which is plenty
+    // of identity and a fraction of the visual weight).
+    if (config?.banner) {
+      term.write(config.banner);
+    }
     term.write(config?.welcomeMessage?.() ?? formatWelcome());
     const auto = useDmContextStore.getState().autoMode;
     if (auto) {

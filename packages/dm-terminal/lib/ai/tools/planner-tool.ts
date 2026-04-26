@@ -45,7 +45,16 @@ A single design brief in plain prose, structured like this — keep section head
 
 THEME — one sentence on tone, genre, vibe.
 CHARACTERS — bulleted list, max 4. For each: name, role, one-sentence personality hook the executor can use when writing dialogue.
-MAP — width × height (pick something between 30×30 and 60×60 unless the request demands otherwise). Then a few sentences on the broad zones (e.g. "north half is dense forest, south half is a cleared plain with the village in the middle"). Don't enumerate every tile.
+MAP — pick non-square dimensions that fit the scene's natural shape. A wandered forest path is long and narrow (50×25). A coastal town is wide (55×35). A mountain pass is tall and pinched (25×50). Square (40×40) is the boring default — only use it when the scene genuinely is a square arena. Stay between 25 and 60 on each axis.
+
+Then design the topography in LAYERS, not a flat fill. Specify three to five distinct terrain bands or features and HOW they overlap to break up the rectangle:
+  - One base terrain (grass, sand, dirt) covering most of the map.
+  - One ELEVATED region using mountain (+2), rock (+1), or snow (+1) tiles — a ridge along an edge, a single peak, a horseshoe of hills, a plateau. Pick a shape that creates an interesting silhouette, not a stripe across the whole map.
+  - One LOW or wet feature using water (-1), deep-water (-2), or swamp (-1) — a meandering river that cuts diagonally, a coastline along one edge, a pond, a swampy hollow. Rivers and coasts especially shouldn't be straight lines; describe them with at least one bend.
+  - One textural overlay — patches of forest, rocky outcrops, sand dunes — scattered, NOT a clean rectangle.
+  - Optional: a road or path (dirt-road / paved-road) connecting key POIs, ideally curving around the elevated region rather than going through it.
+
+Describe each layer in one short sentence with rough tile bounds, e.g. "river: water tiles from (0,18) snaking east to (40,12), bending south around the hill". The executor will translate each layer into one paintTerrain call, so don't enumerate every tile — give shapes the executor can sketch in 3-5 rectangles per layer.
 POIS — bulleted list, max 4 for a first-pass plan. For each: name, POI type from the catalog (tavern, ruin, statue, well, signpost, tree, rock, etc.), approximate tile coords, and ONE sentence describing what the player sees when they walk up. Every POI must have a beat — call this out by including a tiny 1-2 sentence dialogue snippet the executor can use as the beat content.
 SPAWN — single tile coord plus a one-line rationale ("edge of forest path facing the village so the first thing the player sees is the rooftops").
 PREFACE — 2-4 sentence opening framing the executor will turn into the preface dialogue node. Write it in-fiction, second person — this is what the player reads. Use the editor's color tags inline if a noun deserves one (red for threats, yellow for items, cyan for landmarks, green for magic, magenta for visions). Most prefaces have zero or one colored token — don't decorate.
