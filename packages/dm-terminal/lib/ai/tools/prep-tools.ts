@@ -75,7 +75,7 @@ export const createChapterTool = tool({
 
 export const addDialogueNodeTool = tool({
   description:
-    "Add a dialogue node to a chapter. Each node is a single beat — a chunk of narration or NPC speech the player will see, plus optional choices that branch to other nodes. Dialogue is broken into typed-out segments; each segment can have its own pace (excited / neutral / thoughtful / hesitant / pause) and optional emphasis color. Vary pace within a node for natural rhythm — drop a 'pause' segment containing '...' for dramatic beats. You can pass either `segments` (richer, preferred) or plain `lines` (each line becomes one neutral segment).",
+    "Add a dialogue node to a chapter. Each node is a single beat — a chunk of narration or NPC speech the player will see, plus optional choices that branch to other nodes. You can pass either `lines` (simple, preferred for narration) or `segments` (use only when pacing or color is genuinely warranted, primarily for character speech). IMPORTANT: segments concatenate with no automatic whitespace — include trailing spaces between sentences yourself. Pace variation belongs on character voices, not the narrator. Color is for specific categories only (see field docs).",
   parameters: z.object({
     chapterName: z
       .string()
@@ -94,7 +94,7 @@ export const addDialogueNodeTool = tool({
           text: z
             .string()
             .describe(
-              "Text content of this segment. Keep IN-FICTION — this is what the player reads."
+              "Text content of this segment. Keep IN-FICTION — this is what the player reads. Segments concatenate raw with NO automatic spacing — if this segment is followed by another, include the trailing space yourself (e.g. 'He looked up. ' not 'He looked up.')."
             ),
           pace: z
             .enum([
@@ -106,7 +106,7 @@ export const addDialogueNodeTool = tool({
             ])
             .optional()
             .describe(
-              "Per-character typing pace. Default 'neutral'. 'pause' is great for '...' beats and dramatic moments."
+              "Per-segment typing pace. Default 'neutral'. The narrator should stay 'neutral' — pace variation is how character voices sound (a frightened witness 'hesitant', a barker 'excited', a sage 'thoughtful'). 'pause' is the one exception fair for narration too, containing '…' or '—', used at most once per node for a real dramatic beat."
             ),
           color: z
             .enum([
@@ -120,19 +120,19 @@ export const addDialogueNodeTool = tool({
             ])
             .optional()
             .describe(
-              "Optional emphasis color for a word or phrase. Use sparingly — usually only for a key noun or threat."
+              "Zelda-style emphasis on a single proper noun or short phrase. Use only for specific categories: red = threats/antagonists, yellow = key items/treasures, cyan = locations/landmarks, green = magic/spells, magenta = dreams/visions. Most nodes should have zero colored segments; a node that uses color should usually have exactly one. Don't decorate — flag."
             ),
         })
       )
       .optional()
       .describe(
-        "Preferred richer form: 2-8 segments per node. Split a single sentence into multiple segments to vary pace mid-line, e.g. ['I…', 'I think we should run.'] with the first segment as 'hesitant' and the second as 'neutral'."
+        "Use only when pacing or color genuinely matter — usually for character speech with personality. For plain narration, use `lines` instead. When mixing paces mid-sentence, the leading whitespace goes on the second segment: ['I…', ' I think we should run.'] not ['I…', 'I think we should run.']."
       ),
     lines: z
       .array(z.string())
       .optional()
       .describe(
-        "Simple fallback: each string becomes one neutral segment. Use `segments` instead when pacing matters."
+        "Preferred form for narration and any flat dialogue. Each string is one neutral segment. Use this by default; reach for `segments` only when pacing variation or color emphasis genuinely earns its place."
       ),
     choices: z
       .array(

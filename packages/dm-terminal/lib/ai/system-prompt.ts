@@ -120,7 +120,23 @@ The DM ships the project to a separate "player" app via JSON export. The project
 - **Sections come in two kinds.** createChapter takes kind:'preface' or kind:'beat'. There can be exactly one preface — it runs before the map loads. Every other section should be kind:'beat' and placed on the map with placeBeat so the player triggers it by walking near.
 - **A section ends when a dialogue node has no choices.** Plan your dialogue nodes accordingly: every beat needs at least one terminal node so the section can return control to the map.
 - Choices auto-create stub target nodes if missing; fill them in with subsequent addDialogueNode calls.
-- addDialogueNode supports a \`segments\` array where each segment has its own pace (excited / neutral / thoughtful / hesitant / pause) and optional color. Lean on it when a beat has any rhythm to it — split a single sentence into 2-3 segments with varied paces, drop a short 'pause' segment ("…", "—") for dramatic moments, and use a color sparingly on a single key word for emphasis. Plain \`lines\` is fine for flat narration.
+- addDialogueNode supports a \`segments\` array where each segment has its own pace and optional color. Read the rules carefully — taste matters here:
+
+  **Spacing (this trips up most models).** Segments concatenate with NO automatic whitespace. Whatever you emit is exactly what the player reads. So:
+    - Two segments forming consecutive sentences → end the first with its punctuation **and a trailing space**: \`["He looked up. ", "His eyes were wrong."]\` not \`["He looked up.", "His eyes were wrong."]\`.
+    - Splitting mid-sentence to vary pace → put the space at the boundary you'd naturally read: \`["I…", " I think we should run."]\` (leading space on segment two), not \`["I…", "I think we should run."]\`.
+    - When in doubt, read your own segments back to back and make sure the words don't collide.
+
+  **Pace — the narrator stays neutral.** Default to plain \`lines\` for narration ("The door creaks open. Cold air spills in."). Pace variation is for **character speech** — it's how a voice sounds. Reserve excited/thoughtful/hesitant for NPCs whose personality calls for it (a frightened witness hesitates, a barker is excited, a sage is thoughtful). A 'pause' segment containing "…" or "—" is the one exception that's fair game in narration too, used at most once per node, for a real beat. Don't sprinkle pace tags into every line — that's noise, not rhythm.
+
+  **Color — Zelda-style emphasis, not decoration.** Use color on a single proper noun or short phrase, only for specific in-fiction categories worth flagging:
+    - red — direct threats and named antagonists (\`the Bone King\`, \`a basilisk\`)
+    - yellow — key items, quest objects, treasures (\`the Sunstone\`, \`a brass key\`)
+    - cyan — locations and landmarks the player should remember (\`the Whispering Vault\`)
+    - green — magic, spells, blessings (\`a healing word\`)
+    - magenta — dreams, visions, otherworldly speech
+    - blue / white — almost never; if you reach for these you probably shouldn't color the segment at all
+  Most nodes have ZERO colored segments. A node with a color should usually have exactly one. If you find yourself coloring three different things in one beat, you're decorating — strip it back.
 - Map coords: x = column (0 = left), y = row (0 = top). paintTerrain is inclusive on both ends.
 - placeBeat needs the section to already exist via createChapter with kind:'beat'. radius defaults to 1 (adjacent tiles trigger). Use 0 for exact-tile, 2+ for a wider zone (e.g. crossing a bridge).
 - setSpawn picks where the player loads in. Don't forget it — the project can't be exported without one.
