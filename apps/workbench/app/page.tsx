@@ -9,7 +9,7 @@ const WorkbenchLayout = dynamic(
     loading: () => (
       <div className="h-screen w-screen flex items-center justify-center bg-background">
         <div className="text-muted-foreground text-lg animate-pulse">
-          Loading Workbench...
+          Loading...
         </div>
       </div>
     ),
